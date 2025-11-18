@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Just Split It</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Safety shim for process.env if not immediately available
+      if (typeof process === 'undefined') {
+        window.process = { env: { API_KEY: '' } };
+      }
+    </script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              nike: {
+                black: '#000000',
+                gray: '#121212',
+                card: '#1C1C1E',
+                volt: '#CBF300', // Nike Volt Green
+                white: '#FFFFFF',
+                subtext: '#8E8E93',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
+              condensed: ['Impact', 'Arial Narrow', 'sans-serif'],
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s ease-out forwards',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'translateY(10px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #000000;
+        color: #FFFFFF;
+        font-family: 'Inter', sans-serif;
+      }
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

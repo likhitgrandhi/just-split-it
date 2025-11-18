@@ -1,0 +1,5 @@
+{
+  "name": "Just Split It",
+  "description": "A high-performance bill splitting application inspired by athletic aesthetics. Upload receipts, extract items via AI, and split costs with your squad.",
+  "requestFramePermissions": []
+}
