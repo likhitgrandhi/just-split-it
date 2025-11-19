@@ -39,7 +39,7 @@ export const parseReceiptImage = async (base64Data: string, mimeType: string): P
           },
           price: {
             type: Type.NUMBER,
-            description: "The price of the item. Do not include currency symbols.",
+            description: "The TOTAL price of the item (quantity * unit price). Do not include currency symbols.",
           },
         },
         required: ["name", "price"],
@@ -58,7 +58,7 @@ export const parseReceiptImage = async (base64Data: string, mimeType: string): P
             },
           },
           {
-            text: "Analyze this receipt. Extract all line items and their prices. Ignore subtotal, tax, and total lines unless they are specific service charges. Return a JSON array.",
+            text: "Analyze this receipt. Extract all line items and their prices. For items with quantity > 1, ensure you extract the TOTAL amount (quantity * unit price), NOT the unit price. Ignore subtotal, tax, and total lines unless they are specific service charges. Return a JSON array.",
           },
         ],
       },
