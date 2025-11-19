@@ -72,8 +72,8 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, isProcessi
             Upload Receipt
           </h3>
           <p className="text-nike-subtext font-medium max-w-xs">
-            Drop your bill here or tap to browse. 
-            <br/>We'll handle the math.
+            Drop your bill here or tap to browse.
+            <br />We'll handle the math.
           </p>
         </div>
       )}

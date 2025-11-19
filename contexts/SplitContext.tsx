@@ -22,8 +22,10 @@ interface SplitContextType {
     error: string | null;
     isRestoring: boolean;
     pendingJoinPin: string | null;
+    clearPendingJoinPin: () => void;
     toggleLock: () => Promise<void>;
     endSplit: () => Promise<void>;
+    startManualSplit: () => void;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -236,12 +238,16 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             // Check if we are rejoining (already in local storage?)
             const savedSession = localStorage.getItem(STORAGE_KEY);
+            let existingUserId: string | null = null;
             let isRejoining = false;
+
             if (savedSession) {
                 try {
                     const { pin: savedPin, userId } = JSON.parse(savedSession);
                     if (savedPin === joinPin && userId) {
                         isRejoining = true;
+                        existingUserId = userId;
+                        console.log('🔄 REJOIN: Found existing session for this split', { userId });
                     }
                 } catch (e) { }
             }
@@ -252,30 +258,39 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             setIsHost(false);
 
-            // Check if we are rejoining (already in local storage?)
-            // For now, assume new join unless logic above handled it.
+            const latestSplit = await getSplitByPin(joinPin);
+            const latestUsers = latestSplit?.data?.users || [];
 
+            let currentUser: User;
+            let updatedUsers: User[];
+
+            // If rejoining with existing userId, find and reuse that user
+            if (existingUserId) {
+                const existingUser = latestUsers.find((u: User) => u.id === existingUserId);
+                if (existingUser) {
+                    console.log('🔄 REJOIN: Reusing existing user', existingUser);
+                    currentUser = existingUser;
+                    updatedUsers = latestUsers; // No change to users list
+                    setCurrentUser(currentUser);
+                    setItems(data.items || []);
+                    setUsers(updatedUsers);
+                    setPin(joinPin);
+                    setStep(AppStep.SPLIT);
+                    // Don't update Supabase, just restore local state
+                    return;
+                }
+            }
+
+            // Create new user (first time joining or session lost)
             const newUser: User = {
                 id: crypto.randomUUID(),
                 name: userName,
                 color: '#' + Math.floor(Math.random() * 16777215).toString(16)
             };
+            currentUser = newUser;
             setCurrentUser(newUser);
 
-            const latestSplit = await getSplitByPin(joinPin);
-            const latestUsers = latestSplit?.data?.users || [];
-
-            const userExists = latestUsers.some(u => u.name === userName);
-            if (userExists) {
-                // If user exists by name, we might be rejoining as a different ID if we lost session.
-                // Ideally we should prompt "Is this you?" but for now we just add a new user or fail?
-                // The requirement says "rejoin on refresh". 
-                // If we are here, it means we didn't find a session, so we are a "new" join.
-                // If name is taken, maybe we should append a number or just let it be.
-                // Current logic allows duplicates with different IDs.
-            }
-
-            const updatedUsers = [...latestUsers, newUser];
+            updatedUsers = [...latestUsers, newUser];
 
             // Default Assignment: Assign new user to ALL items
             const updatedItems = data.items.map((item: ReceiptItem) => ({
@@ -389,6 +404,15 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         localStorage.removeItem(STORAGE_KEY);
     };
 
+    const startManualSplit = () => {
+        setSplitStatus('active');
+        setIsHost(true); // Treat manual user as host so they don't see waiting room
+    };
+
+    const clearPendingJoinPin = () => {
+        setPendingJoinPin(null);
+    };
+
     return (
         <SplitContext.Provider value={{
             items, setItems,
@@ -404,7 +428,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isRestoring,
             pendingJoinPin,
             toggleLock,
-            endSplit
+            endSplit,
+            startManualSplit,
+            clearPendingJoinPin
         }}>
             {children}
         </SplitContext.Provider>

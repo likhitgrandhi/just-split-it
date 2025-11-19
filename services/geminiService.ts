@@ -26,7 +26,7 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
  */
 export const parseReceiptImage = async (base64Data: string, mimeType: string): Promise<ExtractedItem[]> => {
   try {
-    const modelId = 'gemini-2.5-flash';
+    const modelId = 'gemini-2.5-flash-lite-preview-09-2025';
 
     const responseSchema: Schema = {
       type: Type.ARRAY,
