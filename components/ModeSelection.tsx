@@ -39,35 +39,35 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                         {/* Manual Mode Card */}
                         <button
                             onClick={onManualSelect}
-                            className="group relative bg-[#2C2C2E] hover:bg-[#3A3A3C] p-6 rounded-2xl border border-white/5 hover:border-[#CBF300]/50 transition-all duration-300 text-left flex flex-col h-full"
+                            className="group relative bg-[#2C2C2E] hover:bg-[#3A3A3C] p-8 rounded-2xl border border-white/5 hover:border-[#CBF300]/50 transition-all duration-300 flex flex-col items-center justify-center h-full min-h-[280px]"
                         >
-                            <div className="mb-4 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center group-hover:bg-gray-600 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="mb-6 w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center group-hover:bg-gray-600 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Manual Split</h3>
-                            <p className="text-gray-400 text-sm leading-relaxed">
-                                Add friends manually and assign items yourself. Best for when you're splitting later or doing it for everyone.
+                            <h3 className="text-2xl font-bold text-white mb-3">Manual Split</h3>
+                            <p className="text-gray-400 text-xs text-center leading-relaxed max-w-[200px]">
+                                Add friends and assign items yourself
                             </p>
                         </button>
 
                         {/* Live Mode Card */}
                         <button
                             onClick={handleLiveClick}
-                            className="group relative bg-[#2C2C2E] hover:bg-[#3A3A3C] p-6 rounded-2xl border border-white/5 hover:border-[#CBF300]/50 transition-all duration-300 text-left flex flex-col h-full"
+                            className="group relative bg-[#2C2C2E] hover:bg-[#3A3A3C] p-8 rounded-2xl border border-white/5 hover:border-[#CBF300]/50 transition-all duration-300 flex flex-col items-center justify-center h-full min-h-[280px]"
                         >
                             <div className="absolute top-4 right-4">
                                 <span className="bg-[#CBF300] text-black text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">New</span>
                             </div>
-                            <div className="mb-4 w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center group-hover:bg-gray-600 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#CBF300]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="mb-6 w-24 h-24 rounded-full bg-gray-700 flex items-center justify-center group-hover:bg-gray-600 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[#CBF300]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Live Split</h3>
-                            <p className="text-gray-400 text-sm leading-relaxed">
-                                Get a PIN code. Friends join on their phones and pick their own items in real-time.
+                            <h3 className="text-2xl font-bold text-white mb-3">Live Split</h3>
+                            <p className="text-gray-400 text-xs text-center leading-relaxed max-w-[200px]">
+                                Get a PIN. Friends join and pick items in real-time
                             </p>
                         </button>
                     </div>

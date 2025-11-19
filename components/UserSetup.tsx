@@ -9,7 +9,7 @@ interface UserSetupProps {
 }
 
 const AVATAR_COLORS = [
-  'bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500', 
+  'bg-blue-500', 'bg-red-500', 'bg-green-500', 'bg-yellow-500',
   'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500'
 ];
 
@@ -25,9 +25,9 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
 
   const addUser = () => {
     if (!nameInput.trim()) return;
-    
+
     const names = nameInput.split(',').map(n => n.trim()).filter(n => n.length > 0);
-    
+
     const newUsers: User[] = names.map(name => ({
       id: generateId(),
       name,
@@ -81,18 +81,18 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
         {users.length === 0 ? (
           <div className="text-center py-10 opacity-30">
             <div className="text-6xl mb-4">🏃</div>
-            <p className="uppercase font-bold tracking-widest">No runners yet</p>
+            <p className="uppercase font-bold tracking-widest">No friends added yet</p>
           </div>
         ) : (
           <div className="flex flex-wrap gap-3">
             {users.map(user => (
-              <div 
-                key={user.id} 
+              <div
+                key={user.id}
                 className="flex items-center gap-2 bg-nike-card border border-nike-gray pl-3 pr-2 py-2 rounded-full animate-fade-in"
               >
                 <div className={`w-2 h-2 rounded-full ${user.color}`}></div>
                 <span className="font-bold text-sm uppercase tracking-wide">{user.name}</span>
-                <button 
+                <button
                   onClick={() => removeUser(user.id)}
                   className="ml-1 p-1 hover:bg-white/10 rounded-full text-nike-subtext hover:text-white transition-colors"
                 >

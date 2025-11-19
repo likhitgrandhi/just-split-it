@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { ArrowLeft, Copy, Loader2, CheckCircle2, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { useSplit } from '../contexts/SplitContext';
+import { useToast } from '../hooks/useToast';
+import { Toast } from './Toast';
 
 interface ShareViewProps {
   currency: string;
@@ -18,6 +20,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
 
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [isCreatingPin, setIsCreatingPin] = useState(false);
+  const { toasts, hideToast, success, error: showError } = useToast();
 
   // Auto-generate PIN if not exists
   useEffect(() => {
@@ -110,18 +113,52 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
         document.body.removeChild(clone);
 
         if (!blob) {
-          alert("Failed to generate image.");
+          showError("Failed to generate image.");
           setCopyingId(null);
           return;
         }
 
         try {
-          const item = new ClipboardItem({ 'image/png': blob });
-          await navigator.clipboard.write([item]);
+          // Try Web Share API first (works on mobile)
+          if (navigator.share && navigator.canShare) {
+            const file = new File([blob], `${userName}-split.png`, { type: 'image/png' });
+            const shareData = {
+              files: [file],
+              title: `${userName}'s Split`,
+              text: `Here's your split breakdown for ${userName}`
+            };
+
+            if (navigator.canShare(shareData)) {
+              await navigator.share(shareData);
+              setCopyingId(null);
+              return;
+            }
+          }
+
+          // Fallback 1: Try clipboard
+          try {
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+            setTimeout(() => setCopyingId(null), 1500);
+            return;
+          } catch (clipErr) {
+            console.log("Clipboard failed, trying download...", clipErr);
+          }
+
+          // Fallback 2: Download image
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${userName}-split.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
           setTimeout(() => setCopyingId(null), 1500);
+
         } catch (err) {
-          console.error("Clipboard write failed", err);
-          alert("Could not copy image. Please try in a secure context (HTTPS).");
+          console.error("Share failed", err);
+          showError("Could not share image. Please try again.");
           setCopyingId(null);
         }
       }, 'image/png');
@@ -135,10 +172,33 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
     }
   };
 
-  const handleSharePin = () => {
+  const handleSharePin = async () => {
     if (!pin) return;
-    navigator.clipboard.writeText(pin);
-    alert(`PIN ${pin} copied to clipboard!`);
+
+    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${pin}`;
+    const shareText = `Join my split! Use PIN: ${pin}\n\nOr click: ${shareUrl}`;
+
+    try {
+      // Try Web Share API first
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Join Split',
+          text: shareText,
+        });
+        return;
+      }
+    } catch (err) {
+      console.log("Web Share failed, trying clipboard...", err);
+    }
+
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareText);
+      success("Link copied! Share it with your friends.");
+    } catch (err) {
+      // Last resort: Show the text
+      showError("Could not copy link. Please try again.");
+    }
   };
 
   return (
@@ -203,7 +263,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
                 </div>
 
                 {/* Amount */}
-                <div className="text-center py-3 md:py-4">
+                <div className="text-center py-5 md:py-6">
                   <span className="text-4xl md:text-6xl font-condensed font-bold text-nike-volt tracking-tighter drop-shadow-[0_0_15px_rgba(203,243,0,0.3)]">
                     {currency}{data.total.toFixed(2)}
                   </span>
@@ -217,11 +277,11 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
                     </div>
                   ) : (
                     data.items.map((item, idx) => (
-                      <div key={`${item.id}-${idx}`} className="flex justify-between items-center text-sm group/item">
-                        <span className="text-nike-subtext font-medium truncate pr-4 group-hover/item:text-white transition-colors">
+                      <div key={`${item.id}-${idx}`} className="flex justify-between items-start gap-3 text-sm group/item">
+                        <span className="text-nike-subtext font-medium break-words flex-1 group-hover/item:text-white transition-colors">
                           {item.name}
                         </span>
-                        <span className="font-mono font-bold text-white">
+                        <span className="font-mono font-bold text-white whitespace-nowrap">
                           {currency}{item.splitPrice.toFixed(2)}
                         </span>
                       </div>
@@ -275,6 +335,16 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
       <div className="text-center text-nike-subtext text-[10px] uppercase tracking-widest pb-4 md:hidden">
         Swipe for more
       </div>
+
+      {/* Toast Notifications */}
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => hideToast(toast.id)}
+        />
+      ))}
     </div>
   );
 };
