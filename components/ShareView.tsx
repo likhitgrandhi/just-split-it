@@ -1,21 +1,40 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { ReceiptItem, User } from '../types';
-import { ArrowLeft, Copy, Loader2, CheckCircle2 } from 'lucide-react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { ArrowLeft, Copy, Loader2, CheckCircle2, Share2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
+import { useSplit } from '../contexts/SplitContext';
 
 interface ShareViewProps {
-  items: ReceiptItem[];
-  users: User[];
   currency: string;
   onBack: () => void;
+  // Optional props for backward compatibility
+  items?: any;
+  users?: any;
 }
 
-export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, onBack }) => {
+export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
+  const { items, users, pin, createSplit } = useSplit();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  // We use a ref map to access individual card DOM elements
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  
+
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [isCreatingPin, setIsCreatingPin] = useState(false);
+
+  // Auto-generate PIN if not exists
+  useEffect(() => {
+    if (!pin && !isCreatingPin) {
+      const initSplit = async () => {
+        setIsCreatingPin(true);
+        try {
+          await createSplit();
+        } catch (err) {
+          console.error("Failed to create split", err);
+        } finally {
+          setIsCreatingPin(false);
+        }
+      };
+      initSplit();
+    }
+  }, [pin, createSplit, isCreatingPin]);
 
   // Calculate data per user
   const userSplits = useMemo(() => {
@@ -26,9 +45,9 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
           ...item,
           splitPrice: item.price / item.assignedTo.length
         }));
-      
+
       const total = userItems.reduce((sum, item) => sum + item.splitPrice, 0);
-      
+
       return {
         user,
         items: userItems,
@@ -44,73 +63,61 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
     setCopyingId(userId);
 
     // 1. Create a deep clone of the card to manipulate for the screenshot
-    // This avoids messing up the UI and allows us to expand the card to full height
     const clone = element.cloneNode(true) as HTMLElement;
 
-    // 2. Style the clone to be off-screen but fully rendered
+    // 2. Style the clone
     Object.assign(clone.style, {
-        position: 'fixed',
-        top: '-10000px',
-        left: '-10000px',
-        width: '375px', // Standard mobile width for consistent nice look
-        height: 'auto', // Allow it to grow naturally
-        maxHeight: 'none',
-        transform: 'none', // Remove any carousel scaling/transforms
-        zIndex: '-1',
-        borderRadius: '24px', // Ensure border radius is captured
+      position: 'fixed',
+      top: '-10000px',
+      left: '-10000px',
+      width: '375px',
+      height: 'auto',
+      maxHeight: 'none',
+      transform: 'none',
+      zIndex: '-1',
+      borderRadius: '24px',
     });
 
-    // 3. Fix internal layout for the snapshot
-    // Find the scrollable list container and unconstrain it
+    // 3. Fix internal layout
     const scrollContainer = clone.querySelector('.overflow-y-auto');
     if (scrollContainer) {
-        const el = scrollContainer as HTMLElement;
-        el.style.overflow = 'visible';
-        el.style.height = 'auto';
-        el.style.maxHeight = 'none';
-        el.classList.remove('pb-24'); // Remove the large padding meant for the button
-        el.style.paddingBottom = '2rem'; // Add reasonable padding
+      const el = scrollContainer as HTMLElement;
+      el.style.overflow = 'visible';
+      el.style.height = 'auto';
+      el.style.maxHeight = 'none';
+      el.classList.remove('pb-24');
+      el.style.paddingBottom = '2rem';
     }
 
-    // Remove the 'Copy' button container completely from the clone
-    // (We don't want the button in the image)
+    // Remove buttons
     const actionContainer = clone.querySelector('.ignore-in-capture');
     if (actionContainer) {
-        actionContainer.remove();
+      actionContainer.remove();
     }
 
-    // Append to body so html2canvas can render it
     document.body.appendChild(clone);
 
     try {
-      // Generate canvas from the cloned element
       const canvas = await html2canvas(clone, {
-        backgroundColor: '#1C1C1E', // Explicitly set background color
-        scale: 3, // 3x scale for high resolution (crisp text)
+        backgroundColor: '#1C1C1E',
+        scale: 3,
         logging: false,
         useCORS: true,
         allowTaint: true,
-        onclone: (doc) => {
-            // Optional: Perform any other DOM manipulations inside the cloned doc if needed
-        }
       });
 
       canvas.toBlob(async (blob) => {
-        // Clean up the clone immediately
         document.body.removeChild(clone);
 
         if (!blob) {
-            alert("Failed to generate image.");
-            setCopyingId(null);
-            return;
+          alert("Failed to generate image.");
+          setCopyingId(null);
+          return;
         }
 
         try {
-          // Use the Clipboard API to write the image
           const item = new ClipboardItem({ 'image/png': blob });
           await navigator.clipboard.write([item]);
-          
-          // Show success state briefly then reset
           setTimeout(() => setCopyingId(null), 1500);
         } catch (err) {
           console.error("Clipboard write failed", err);
@@ -124,9 +131,14 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
       if (document.body.contains(clone)) {
         document.body.removeChild(clone);
       }
-      alert("Failed to generate receipt image.");
       setCopyingId(null);
     }
+  };
+
+  const handleSharePin = () => {
+    if (!pin) return;
+    navigator.clipboard.writeText(pin);
+    alert(`PIN ${pin} copied to clipboard!`);
   };
 
   return (
@@ -140,9 +152,19 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
           <ArrowLeft size={18} className="md:group-hover:-translate-x-1 transition-transform" />
           <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Back</span>
         </button>
-        <h2 className="text-base md:text-xl font-extrabold italic uppercase tracking-tighter text-nike-volt">
-          Share Results
-        </h2>
+
+        <div className="flex flex-col items-end">
+          <h2 className="text-base md:text-xl font-extrabold italic uppercase tracking-tighter text-nike-volt">
+            Share Results
+          </h2>
+          {pin ? (
+            <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-white/70 hover:text-white transition-colors">
+              PIN: <span className="font-bold text-white">{pin}</span> <Copy size={10} />
+            </button>
+          ) : (
+            <span className="text-xs text-white/50 animate-pulse">Generating PIN...</span>
+          )}
+        </div>
       </div>
 
       {/* Carousel Container */}
@@ -205,14 +227,14 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
                       </div>
                     ))
                   )}
-                  
-                  {/* Branding Footer for the Image (Visible only in screenshot mostly, but helps branding) */}
+
+                  {/* Branding Footer */}
                   <div className="pt-4 pb-2 flex justify-center opacity-30">
-                     <span className="text-[10px] font-bold uppercase tracking-widest">Just Split It</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Just Split It</span>
                   </div>
                 </div>
 
-                {/* Card Actions (Ignored in Screenshot via logic) */}
+                {/* Card Actions */}
                 <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-nike-card via-nike-card to-transparent ignore-in-capture">
                   <button
                     onClick={() => handleCopyImage(data.user.id, data.user.name)}
@@ -223,15 +245,15 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
                     `}
                   >
                     {isCopying ? (
-                        <>
-                            <Loader2 size={14} className="animate-spin" />
-                            Generating...
-                        </>
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Generating...
+                      </>
                     ) : (
-                        <>
-                            <Copy size={14} />
-                            Copy as Image
-                        </>
+                      <>
+                        <Copy size={14} />
+                        Copy as Image
+                      </>
                     )}
                   </button>
                 </div>
@@ -244,7 +266,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ items, users, currency, on
       {/* Scroll Indicators / Hint */}
       <div className="flex justify-center gap-2 pb-6">
         {userSplits.map((_, idx) => (
-          <div 
+          <div
             key={idx}
             className="w-2 h-2 rounded-full bg-white/20"
           />
