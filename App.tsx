@@ -99,7 +99,7 @@ const AppContent: React.FC = () => {
 
       setItems(formattedItems);
       // Instead of going straight to USERS, show mode selection
-      setStep(AppStep.SPLIT);
+      setIsModeSelectionOpen(true);
     } catch (error) {
       console.error(error);
       showError("Could not extract data from receipt. Please try a clearer image.");
