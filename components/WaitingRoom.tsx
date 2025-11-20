@@ -2,15 +2,16 @@ import React, { useEffect } from 'react';
 import { useSplit } from '../contexts/SplitContext';
 
 export const WaitingRoom: React.FC = () => {
-    const { splitStatus } = useSplit();
+    const { splitStatus, reset } = useSplit();
 
-    // Auto-redirect when status becomes active
+    // Auto-redirect when status becomes active or ended
     useEffect(() => {
-        if (splitStatus === 'active') {
-            // The parent component (App.tsx) will handle the rendering switch
-            // based on the status, but we can also force a re-render or check here
+        if (splitStatus === 'ended') {
+            // Room was ended/discarded by host, redirect to home
+            console.log('🔴 WAITING ROOM: Room ended, redirecting to home');
+            reset();
         }
-    }, [splitStatus]);
+    }, [splitStatus, reset]);
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">

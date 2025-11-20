@@ -55,3 +55,12 @@ export const subscribeToSplit = (pin: string, callback: (payload: any) => void) 
             console.log(`Subscription status for ${pin}:`, status);
         });
 };
+
+export const deleteSplit = async (pin: string) => {
+    const { error } = await supabase
+        .from('splits')
+        .delete()
+        .eq('pin', pin);
+
+    if (error) throw error;
+};

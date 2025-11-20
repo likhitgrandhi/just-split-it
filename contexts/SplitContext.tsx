@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { ReceiptItem, User, AppStep } from '../types';
-import { createSplit as apiCreateSplit, getSplitByPin, updateSplitData, subscribeToSplit } from '../services/supabase';
+import { createSplit as apiCreateSplit, getSplitByPin, updateSplitData, subscribeToSplit, deleteSplit } from '../services/supabase';
 
 interface SplitContextType {
     items: ReceiptItem[];
@@ -26,6 +26,7 @@ interface SplitContextType {
     toggleLock: () => Promise<void>;
     endSplit: () => Promise<void>;
     startManualSplit: () => void;
+    discardUnstartedRoom: () => Promise<void>;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -105,59 +106,89 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const params = new URLSearchParams(window.location.search);
             const urlJoinPin = params.get('join');
 
-            if (urlJoinPin) {
-                console.log('🔗 DEEP LINK: Found PIN in URL', urlJoinPin);
-                setPendingJoinPin(urlJoinPin);
-                // If we have a URL PIN, we might want to prioritize it over local storage
-                // UNLESS the local storage matches the URL PIN (rejoining same split)
-            }
-
             // 2. Check Local Storage
             const savedSession = localStorage.getItem(STORAGE_KEY);
-            if (savedSession && !pin) {
+            let savedData = null;
+            if (savedSession) {
                 try {
-                    const { pin: savedPin, userId, userName } = JSON.parse(savedSession);
+                    savedData = JSON.parse(savedSession);
+                } catch (e) {
+                    console.error('Failed to parse session', e);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
 
-                    // If URL PIN exists and is different from Saved PIN, URL wins (User clicked a new link)
-                    if (urlJoinPin && urlJoinPin !== savedPin) {
+            if (urlJoinPin) {
+                console.log('🔗 DEEP LINK: Found PIN in URL', urlJoinPin);
+
+                // Check if this matches our saved session
+                let matchesSaved = false;
+                if (savedData && savedData.pin === urlJoinPin) {
+                    matchesSaved = true;
+                }
+
+                if (!matchesSaved) {
+                    // Only set pending if URL PIN is NEW (doesn't match saved session)
+                    setPendingJoinPin(urlJoinPin);
+                    // If URL PIN differs from Saved PIN, URL wins (User clicked a new link)
+                    if (savedData) {
                         console.log('🔗 DEEP LINK: URL PIN differs from saved session. Ignoring saved session.');
-                        // We don't restore, we let the UI handle the pendingJoinPin
                         setIsRestoring(false);
                         return;
                     }
-
-                    if (savedPin && userId && userName) {
-                        console.log('🔄 PERSISTENCE: Found saved session', { savedPin, userName });
-
-                        // Restore basic state immediately
-                        setPin(savedPin);
-                        setCurrentUser({ id: userId, name: userName, color: '#CBF300' });
-                        setStep(AppStep.SPLIT);
-
-                        // Re-fetch full data
-                        try {
-                            const response = await getSplitByPin(savedPin);
-                            if (response && response.data) {
-                                const data = response.data;
-                                setItems(data.items || []);
-                                setUsers(data.users || []);
-                                if (data.status) setSplitStatus(data.status);
-
-                                const me = data.users?.find((u: User) => u.id === userId);
-                                if (me) setCurrentUser(me);
-                            } else {
-                                console.warn('🔄 PERSISTENCE: Split not found, clearing session');
-                                localStorage.removeItem(STORAGE_KEY);
-                                reset();
-                            }
-                        } catch (err) {
-                            console.error('🔄 PERSISTENCE: Failed to restore', err);
-                        }
-                    }
-                } catch (e) {
-                    console.error('🔄 PERSISTENCE: Failed to parse session', e);
-                    localStorage.removeItem(STORAGE_KEY);
+                } else {
+                    console.log('🔗 DEEP LINK: Matches saved session, resuming auto-login');
+                    // Don't set pendingJoinPin - we're auto-restoring
                 }
+            }
+
+            if (savedData && !pin) {
+                const { pin: savedPin, userId, userName, isHost: savedIsHost } = savedData;
+                console.log('🔍 DEBUG: Checking restoration conditions', {
+                    hasSavedData: !!savedData,
+                    currentPin: pin,
+                    savedPin,
+                    userId,
+                    userName,
+                    urlJoinPin,
+                    pinsMatch: savedPin === urlJoinPin
+                });
+
+                // ONLY restore if the URL PIN matches the saved PIN.
+                // If the user is at the base URL, we do NOT auto-restore.
+                if (savedPin && userId && userName && savedPin === urlJoinPin) {
+                    console.log('🔄 PERSISTENCE: Found saved session matching URL PIN', { savedPin, userName, savedIsHost });
+
+                    // Restore basic state immediately
+                    setPin(savedPin);
+                    setCurrentUser({ id: userId, name: userName, color: '#CBF300' });
+                    if (savedIsHost) setIsHost(true);
+                    setStep(AppStep.SPLIT);
+
+                    // Re-fetch full data
+                    try {
+                        const response = await getSplitByPin(savedPin);
+                        if (response && response.data) {
+                            const data = response.data;
+                            setItems(data.items || []);
+                            setUsers(data.users || []);
+                            if (data.status) setSplitStatus(data.status);
+
+                            const me = data.users?.find((u: User) => u.id === userId);
+                            if (me) setCurrentUser(me);
+                        } else {
+                            console.warn('🔄 PERSISTENCE: Split not found, clearing session');
+                            localStorage.removeItem(STORAGE_KEY);
+                            reset();
+                        }
+                    } catch (err) {
+                        console.error('🔄 PERSISTENCE: Failed to restore', err);
+                    }
+                } else {
+                    console.log('❌ PERSISTENCE: Restoration conditions not met');
+                }
+            } else {
+                console.log('⏭️ PERSISTENCE: Skipping restoration', { hasSavedData: !!savedData, currentPin: pin });
             }
 
             setIsRestoring(false);
@@ -167,40 +198,47 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, []);
 
     const createSplit = async () => {
-        const newPin = Math.floor(1000 + Math.random() * 9000).toString();
-        const hostId = crypto.randomUUID();
+        let retries = 3;
+        while (retries > 0) {
+            const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+            const hostId = crypto.randomUUID();
 
-        try {
-            await apiCreateSplit(newPin, {
-                items,
-                users,
-                hostId,
-                status: 'waiting'
-            });
-            setPin(newPin);
-            setIsHost(true);
-            setSplitStatus('waiting');
+            try {
+                await apiCreateSplit(newPin, {
+                    items,
+                    users,
+                    hostId,
+                    status: 'waiting'
+                });
+                setPin(newPin);
+                setIsHost(true);
+                setSplitStatus('waiting');
 
-            // Update URL without reloading
-            const url = new URL(window.location.href);
-            url.searchParams.set('join', newPin);
-            window.history.pushState({}, '', url);
+                // Update URL without reloading
+                const url = new URL(window.location.href);
+                url.searchParams.set('join', newPin);
+                window.history.pushState({}, '', url);
 
-            if (currentUser) {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    pin: newPin,
-                    userId: currentUser.id,
-                    userName: currentUser.name,
-                    isHost: true
-                }));
+                if (currentUser) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        pin: newPin,
+                        userId: currentUser.id,
+                        userName: currentUser.name,
+                        isHost: true
+                    }));
+                }
+
+                return newPin;
+            } catch (err: any) {
+                console.error('Failed to create split, retrying...', err);
+                retries--;
+                if (retries === 0) {
+                    setError('Failed to create room. Please try again.');
+                    throw err;
+                }
             }
-
-            return newPin;
-        } catch (err: any) {
-            console.error(err);
-            setError(err.message);
-            throw err;
         }
+        throw new Error("Failed to create split");
     };
 
     const startRoom = async () => {
@@ -276,6 +314,12 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     setUsers(updatedUsers);
                     setPin(joinPin);
                     setStep(AppStep.SPLIT);
+
+                    // Update URL even when rejoining
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('join', joinPin);
+                    window.history.pushState({}, '', url);
+
                     // Don't update Supabase, just restore local state
                     return;
                 }
@@ -318,6 +362,11 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 userName: newUser.name,
                 isHost: false
             }));
+
+            // Update URL without reloading so refresh works
+            const url = new URL(window.location.href);
+            url.searchParams.set('join', joinPin);
+            window.history.pushState({}, '', url);
 
         } catch (err: any) {
             console.error(err);
@@ -402,11 +451,43 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentUser(null);
         setError(null);
         localStorage.removeItem(STORAGE_KEY);
+
+        // Clear URL params
+        const url = new URL(window.location.href);
+        url.searchParams.delete('join');
+        window.history.replaceState({}, '', url.toString());
     };
 
     const startManualSplit = () => {
         setSplitStatus('active');
         setIsHost(true); // Treat manual user as host so they don't see waiting room
+    };
+
+    const discardUnstartedRoom = async () => {
+        // Only discard if we have a PIN and the room is still in 'waiting' status
+        if (pin && splitStatus === 'waiting' && isHost) {
+            try {
+                console.log('🗑️ DISCARD: Marking unstarted room as ended', pin);
+                // Mark as 'ended' instead of deleting so participants get notified
+                await updateSplitData(pin, {
+                    items,
+                    users,
+                    hostId: '',
+                    status: 'ended'
+                });
+                setSplitStatus('ended');
+                // Wait a moment for the status update to propagate to participants
+                await new Promise(resolve => setTimeout(resolve, 500));
+                reset();
+            } catch (err) {
+                console.error('Failed to discard room', err);
+                // Still reset locally even if update fails
+                reset();
+            }
+        } else {
+            // Not a waiting room, just reset normally
+            reset();
+        }
     };
 
     const clearPendingJoinPin = () => {
@@ -430,7 +511,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             toggleLock,
             endSplit,
             startManualSplit,
-            clearPendingJoinPin
+            clearPendingJoinPin,
+            discardUnstartedRoom
         }}>
             {children}
         </SplitContext.Provider>

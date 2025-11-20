@@ -22,22 +22,22 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
   const [isCreatingPin, setIsCreatingPin] = useState(false);
   const { toasts, hideToast, success, error: showError } = useToast();
 
-  // Auto-generate PIN if not exists
-  useEffect(() => {
-    if (!pin && !isCreatingPin) {
-      const initSplit = async () => {
-        setIsCreatingPin(true);
-        try {
-          await createSplit();
-        } catch (err) {
-          console.error("Failed to create split", err);
-        } finally {
-          setIsCreatingPin(false);
-        }
-      };
-      initSplit();
-    }
-  }, [pin, createSplit, isCreatingPin]);
+  // Auto-generate PIN if not exists - REMOVED to prevent state leak in manual mode
+  // useEffect(() => {
+  //   if (!pin && !isCreatingPin) {
+  //     const initSplit = async () => {
+  //       setIsCreatingPin(true);
+  //       try {
+  //         await createSplit();
+  //       } catch (err) {
+  //         console.error("Failed to create split", err);
+  //       } finally {
+  //         setIsCreatingPin(false);
+  //       }
+  //     };
+  //     initSplit();
+  //   }
+  // }, [pin, createSplit, isCreatingPin]);
 
   // Calculate data per user
   const userSplits = useMemo(() => {
@@ -102,7 +102,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
 
     try {
       const canvas = await html2canvas(clone, {
-        backgroundColor: '#1C1C1E',
+        backgroundColor: '#FFFFFF',
         scale: 3,
         logging: false,
         useCORS: true,
@@ -207,22 +207,16 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
       <div className="flex items-center justify-between mb-4 md:mb-6 px-2">
         <button
           onClick={onBack}
-          className="flex items-center gap-1 md:gap-2 text-nike-subtext active:text-white md:hover:text-white transition-colors group touch-manipulation"
+          className="text-nike-subtext hover:text-nike-forest font-bold text-sm uppercase tracking-wider flex items-center gap-2 bg-white/50 backdrop-blur-md px-4 py-2 rounded-full hover:bg-white/80 transition-all w-fit"
         >
-          <ArrowLeft size={18} className="md:group-hover:-translate-x-1 transition-transform" />
-          <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Back</span>
+          <ArrowLeft size={16} /> Back
         </button>
 
         <div className="flex flex-col items-end">
-          <h2 className="text-base md:text-xl font-extrabold italic uppercase tracking-tighter text-nike-volt">
-            Share Results
-          </h2>
-          {pin ? (
-            <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-white/70 hover:text-white transition-colors">
-              PIN: <span className="font-bold text-white">{pin}</span> <Copy size={10} />
+          {pin && (
+            <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-nike-forest/70 hover:text-nike-forest transition-colors bg-white/50 px-3 py-1 rounded-full">
+              PIN: <span className="font-bold text-nike-forest">{pin}</span> <Copy size={10} />
             </button>
-          ) : (
-            <span className="text-xs text-white/50 animate-pulse">Generating PIN...</span>
           )}
         </div>
       </div>
@@ -241,15 +235,15 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
               <div
                 key={data.user.id}
                 ref={(el) => { cardRefs.current[data.user.id] = el; }}
-                className="snap-center shrink-0 w-full max-w-xs md:max-w-sm bg-nike-card border border-white/10 rounded-2xl md:rounded-3xl overflow-hidden flex flex-col shadow-2xl relative group"
+                className="snap-center shrink-0 w-full max-w-xs md:max-w-sm bg-white border border-gray-100 rounded-[2rem] overflow-hidden flex flex-col shadow-2xl relative group"
                 style={{ height: 'min(550px, 80vh)' }}
               >
                 {/* Card Header */}
-                <div className="p-6 md:p-8 flex flex-col items-center bg-gradient-to-b from-white/5 to-transparent">
+                <div className="p-6 md:p-8 flex flex-col items-center">
                   <div className={`w-12 h-12 md:w-16 md:h-16 rounded-full ${data.user.color} mb-3 md:mb-4 flex items-center justify-center shadow-lg`}>
                     <span className="text-xl md:text-2xl">👤</span>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-extrabold italic uppercase tracking-tighter text-center text-white">
+                  <h3 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-center text-nike-forest">
                     {data.user.name}
                   </h3>
                   <div className="text-nike-subtext text-xs font-bold uppercase tracking-widest mt-1">
@@ -259,18 +253,18 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
 
                 {/* Dashed Separator */}
                 <div className="w-full px-4 md:px-6">
-                  <div className="border-t-2 border-dashed border-white/10 h-px w-full"></div>
+                  <div className="border-t-2 border-dashed border-gray-200 h-px w-full"></div>
                 </div>
 
                 {/* Amount */}
                 <div className="text-center py-5 md:py-6">
-                  <span className="text-4xl md:text-6xl font-condensed font-bold text-nike-volt tracking-tighter drop-shadow-[0_0_15px_rgba(203,243,0,0.3)]">
+                  <span className="text-4xl md:text-6xl font-mono font-bold text-nike-forest tracking-tighter">
                     {currency}{data.total.toFixed(2)}
                   </span>
                 </div>
 
                 {/* Item List */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-20 md:pb-24 no-scrollbar space-y-2 md:space-y-3 border-t border-white/5 pt-3 md:pt-4">
+                <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-20 md:pb-24 no-scrollbar space-y-2 md:space-y-3 border-t border-gray-100 pt-3 md:pt-4">
                   {data.items.length === 0 ? (
                     <div className="text-center text-nike-subtext text-sm py-4 italic">
                       No items assigned
@@ -278,30 +272,25 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
                   ) : (
                     data.items.map((item, idx) => (
                       <div key={`${item.id}-${idx}`} className="flex justify-between items-start gap-3 text-sm group/item">
-                        <span className="text-nike-subtext font-medium break-words flex-1 group-hover/item:text-white transition-colors">
+                        <span className="text-nike-subtext font-medium break-words flex-1 group-hover/item:text-nike-forest transition-colors">
                           {item.name}
                         </span>
-                        <span className="font-mono font-bold text-white whitespace-nowrap">
+                        <span className="font-mono font-bold text-nike-forest whitespace-nowrap">
                           {currency}{item.splitPrice.toFixed(2)}
                         </span>
                       </div>
                     ))
                   )}
-
-                  {/* Branding Footer */}
-                  <div className="pt-4 pb-2 flex justify-center opacity-30">
-                    <span className="text-[10px] font-bold uppercase tracking-widest">Just Split It</span>
-                  </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-nike-card via-nike-card to-transparent ignore-in-capture">
+                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-white via-white to-transparent ignore-in-capture">
                   <button
                     onClick={() => handleCopyImage(data.user.id, data.user.name)}
                     disabled={isCopying}
                     className={`
-                        w-full py-3 rounded-xl font-extrabold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 touch-manipulation
-                        ${isCopying ? 'bg-white text-black cursor-wait' : 'bg-white text-black active:bg-nike-volt md:hover:bg-nike-volt'}
+                        w-full py-3 rounded-xl font-extrabold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 touch-manipulation shadow-lg
+                        ${isCopying ? 'bg-gray-100 text-nike-subtext cursor-wait' : 'bg-nike-forest text-white active:scale-[0.98] md:hover:bg-black'}
                     `}
                   >
                     {isCopying ? (
@@ -328,13 +317,11 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
         {userSplits.map((_, idx) => (
           <div
             key={idx}
-            className="w-2 h-2 rounded-full bg-white/20"
+            className="w-2 h-2 rounded-full bg-black/10"
           />
         ))}
       </div>
-      <div className="text-center text-nike-subtext text-[10px] uppercase tracking-widest pb-4 md:hidden">
-        Swipe for more
-      </div>
+      {/* Swipe text removed */}
 
       {/* Toast Notifications */}
       {toasts.map(toast => (
