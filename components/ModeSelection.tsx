@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Sparkles, Users, ArrowLeft, Check, X, Copy, Link } from 'lucide-react';
 
 interface ModeSelectionProps {
@@ -21,6 +21,15 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
     const [mode, setMode] = useState<'selection' | 'live-setup'>('selection');
     const [hostName, setHostName] = useState('');
     const [linkCopied, setLinkCopied] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Detect mobile viewport
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const handleCopyLink = async () => {
         if (!pin) return;
@@ -43,6 +52,194 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
         await onLiveSelect(hostName);
     };
 
+    // Mobile: Full-screen page view
+    if (isMobile) {
+        if (mode === 'selection') {
+            return (
+                <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
+                    {/* Content */}
+                    <div className="flex-1 flex flex-col p-6 pt-12 safe-area-inset">
+                        {/* Header with logo and close */}
+                        <div className="flex items-start justify-between mb-6">
+                            <button
+                                onClick={onClose}
+                                className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Logo centered */}
+                        <div className="text-center mb-8">
+                            <h1 className="text-4xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
+                                <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+                                <span className="relative z-10">splitto</span>
+                            </h1>
+                            <p className="text-cloud-subtext text-sm font-medium mt-1">The right way to split</p>
+                        </div>
+
+                        <div className="text-center mb-6">
+                            <h2 className="text-2xl font-bold text-cloud-text mb-1">How do you want to split?</h2>
+                            <p className="text-cloud-subtext text-sm">Choose the best way for your group</p>
+                        </div>
+
+                        {/* Cards - flex to fill available space */}
+                        <div className="flex-1 flex flex-col gap-4 min-h-0">
+                            {/* Manual Mode Card */}
+                            <button
+                                onClick={onManualSelect}
+                                className="flex-1 group bg-pastel-blue p-6 rounded-[2rem] border-2 border-transparent active:border-cloud-primary/30 transition-all duration-200 flex flex-col items-center justify-center shadow-sm active:scale-[0.98] min-h-[140px]"
+                            >
+                                <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center mb-4">
+                                    <Users className="h-7 w-7 text-cloud-text" strokeWidth={2} />
+                                </div>
+                                <h3 className="text-xl font-bold text-cloud-text mb-1">Manual Split</h3>
+                                <p className="text-cloud-subtext text-sm text-center leading-relaxed">
+                                    Add friends and assign items yourself
+                                </p>
+                            </button>
+
+                            {/* Live Mode Card */}
+                            <button
+                                onClick={handleLiveClick}
+                                className="flex-1 group bg-pastel-purple p-6 rounded-[2rem] border-2 border-transparent active:border-cloud-primary/30 transition-all duration-200 flex flex-col items-center justify-center shadow-sm active:scale-[0.98] relative min-h-[140px]"
+                            >
+                                <div className="absolute top-4 right-4">
+                                    <span className="bg-cloud-primary text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">New</span>
+                                </div>
+                                <div className="w-16 h-16 rounded-full bg-white shadow-md flex items-center justify-center mb-4">
+                                    <Sparkles className="h-7 w-7 text-cloud-primary" strokeWidth={2} />
+                                </div>
+                                <h3 className="text-xl font-bold text-cloud-text mb-1">Live Split</h3>
+                                <p className="text-cloud-subtext text-sm text-center leading-relaxed">
+                                    Get a PIN. Friends join and pick in real-time
+                                </p>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Mobile Live Setup view
+        return (
+            <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
+                {/* Content */}
+                <div className="flex-1 flex flex-col p-6 pt-12 safe-area-inset">
+                    {/* Header with back/close */}
+                    <div className="flex items-start justify-between mb-6">
+                        {!pin ? (
+                            <button
+                                onClick={() => setMode('selection')}
+                                className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                            >
+                                <ArrowLeft size={24} />
+                            </button>
+                        ) : (
+                            <div className="w-10" />
+                        )}
+                    </div>
+
+                    {!pin ? (
+                        <div className="flex-1 flex flex-col">
+                            <div className="text-center mb-8">
+                                <div className="w-24 h-24 bg-pastel-blue rounded-full flex items-center justify-center mx-auto mb-5">
+                                    <User className="h-10 w-10 text-cloud-text" strokeWidth={2} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-cloud-text mb-2">What's your name?</h2>
+                                <p className="text-cloud-subtext">We'll show this to your friends</p>
+                            </div>
+
+                            <input
+                                type="text"
+                                value={hostName}
+                                onChange={(e) => setHostName(e.target.value)}
+                                placeholder="Enter your name"
+                                className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-xl text-center placeholder-gray-300 font-bold"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateSplit()}
+                            />
+
+                            <div className="flex-1 min-h-[40px]" />
+
+                            <button
+                                onClick={handleCreateSplit}
+                                disabled={!hostName.trim() || isCreating}
+                                className="w-full bg-black disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-5 rounded-2xl transition-all duration-200 text-lg shadow-lg active:scale-[0.98] transform"
+                            >
+                                {isCreating ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        Creating...
+                                    </span>
+                                ) : (
+                                    "Create Live Room"
+                                )}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col">
+                            <div className="text-center mb-6">
+                                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Check className="h-8 w-8 text-green-500" strokeWidth={3} />
+                                </div>
+                                <h2 className="text-2xl font-bold text-cloud-text mb-2">Room Created!</h2>
+                                <p className="text-cloud-subtext">Share this PIN with your friends</p>
+                            </div>
+
+                            <div className="bg-pastel-green rounded-3xl p-8 mb-6">
+                                <div className="text-xs text-cloud-subtext uppercase tracking-widest font-bold mb-3 text-center">Room PIN</div>
+                                <div className="text-6xl font-black text-cloud-text tracking-[0.15em] font-mono text-center">{pin}</div>
+                            </div>
+
+                            <button
+                                onClick={handleCopyLink}
+                                className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all mb-4 ${
+                                    linkCopied 
+                                        ? 'bg-green-100 text-green-600' 
+                                        : 'bg-gray-100 text-cloud-text active:bg-gray-200'
+                                }`}
+                            >
+                                {linkCopied ? (
+                                    <>
+                                        <Check size={20} />
+                                        Link Copied!
+                                    </>
+                                ) : (
+                                    <>
+                                        <Link size={20} />
+                                        Copy Invite Link
+                                    </>
+                                )}
+                            </button>
+
+                            <div className="flex-1 min-h-[40px]" />
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={onProceed}
+                                    className="w-full bg-black text-white font-bold py-5 rounded-2xl transition-all duration-200 text-lg shadow-lg active:scale-[0.98] transform"
+                                >
+                                    Start Splitting
+                                </button>
+                                <button
+                                    onClick={onClose}
+                                    className="w-full text-cloud-subtext font-medium py-3 transition-colors active:text-cloud-text"
+                                >
+                                    Cancel & Go Back
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Desktop: Modal view (original behavior)
     if (mode === 'selection') {
         return (
             <div className="fixed inset-0 bg-cloud-primary/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">

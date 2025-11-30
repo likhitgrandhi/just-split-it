@@ -180,13 +180,21 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Effect to close join modal when room becomes active
+  // Effect to handle room becoming active - close any modals and ensure correct view
   React.useEffect(() => {
-    if (isJoining && splitStatus === 'active' && currentUser) {
-      setIsJoining(false);
-      setStep(AppStep.SPLIT);
+    if (splitStatus === 'active' && currentUser && pin) {
+      // Close join modal if open
+      if (isJoining) {
+        console.log('🚀 Room active - closing join modal');
+        setIsJoining(false);
+      }
+      // Ensure we're on the split step
+      if (step !== AppStep.SPLIT) {
+        console.log('🚀 Room active - navigating to split view');
+        setStep(AppStep.SPLIT);
+      }
     }
-  }, [splitStatus, isJoining, currentUser, setStep]);
+  }, [splitStatus, currentUser, pin, isJoining, step, setStep]);
 
   const handleReset = () => {
     reset();
@@ -205,7 +213,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
+    <div className="h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
       {isRestoring && (
         <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <div className="w-16 h-16 border-8 border-cloud-primary border-t-transparent rounded-full animate-spin"></div>
@@ -284,30 +292,36 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Name Input Modal for Joining */}
+      {/* Name Input for Joining - Full screen on mobile, modal on desktop */}
       {isJoining && (
-        <div
-          className="fixed inset-0 z-[60] bg-cloud-primary/20 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in"
-          onClick={(e) => {
-            // Close if clicking the backdrop
-            if (e.target === e.currentTarget) {
-              handleCloseJoinModal();
-            }
-          }}
-        >
-          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-soft transform transition-all hover:scale-[1.01]">
+        <div className="fixed inset-0 z-[60] bg-white md:bg-black/20 md:backdrop-blur-md flex flex-col md:items-center md:justify-center animate-fade-in">
+          <div className="flex-1 flex flex-col p-6 pt-12 md:pt-6 md:flex-none md:bg-white md:w-full md:max-w-md md:rounded-[3rem] md:p-10 md:shadow-soft">
             {currentUser && splitStatus === 'waiting' ? (
-              <div className="text-center py-4">
-                <div className="w-32 h-32 bg-cloud-light rounded-full flex items-center justify-center mx-auto mb-8 animate-float shadow-inner-soft">
-                  <span className="text-6xl">⏳</span>
+              // Waiting state - shown after joining, before host starts
+              <div className="flex-1 flex flex-col">
+                {/* Mobile logo */}
+                <div className="text-center mb-6 md:hidden">
+                  <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
+                    <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+                    <span className="relative z-10">splitto</span>
+                  </h1>
                 </div>
-                <h2 className="text-3xl font-bold text-cloud-text mb-3">Waiting for Host</h2>
-                <p className="text-xl text-cloud-subtext mb-8">The host will start the session soon.</p>
-                <div className="flex justify-center space-x-3 mb-8">
-                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+
+                <div className="text-center">
+                  <div className="w-24 h-24 md:w-28 md:h-28 bg-pastel-yellow rounded-full flex items-center justify-center mx-auto mb-5">
+                    <span className="text-5xl md:text-6xl">⏳</span>
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-cloud-text mb-2">Waiting for Host</h2>
+                  <p className="text-cloud-subtext mb-6">The host will start the session soon</p>
+                  <div className="flex justify-center space-x-2 mb-6">
+                    <div className="w-2.5 h-2.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2.5 h-2.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2.5 h-2.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
                 </div>
+
+                <div className="flex-1 md:flex-none" />
+
                 <button
                   type="button"
                   onClick={() => {
@@ -316,21 +330,47 @@ const AppContent: React.FC = () => {
                       setIsJoining(false);
                     }
                   }}
-                  className="text-cloud-subtext hover:text-cloud-text font-bold transition-colors"
+                  className="w-full py-4 text-cloud-subtext active:text-cloud-text font-bold transition-colors rounded-2xl active:bg-gray-100"
                 >
                   Leave & Go Back
                 </button>
               </div>
             ) : (
-              <>
-                <h2 className="text-3xl font-bold text-cloud-text mb-3 text-center">Join Split</h2>
-                <p className="text-xl text-cloud-subtext mb-8 text-center">Enter your name to join the group.</p>
+              // Name entry state
+              <div className="flex-1 flex flex-col">
+                {/* Mobile header with back button */}
+                <div className="flex items-start justify-between mb-4 md:hidden">
+                  <button
+                    onClick={handleCloseJoinModal}
+                    className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                  >
+                    <ArrowRight className="rotate-180" size={24} />
+                  </button>
+                </div>
+
+                {/* Mobile logo */}
+                <div className="text-center mb-6 md:hidden">
+                  <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
+                    <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+                    <span className="relative z-10">splitto</span>
+                  </h1>
+                </div>
+
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-pastel-green rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-cloud-text" strokeWidth={2} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-cloud-text mb-1">Join Split</h2>
+                  <p className="text-cloud-subtext text-sm">Enter your name to join the group</p>
+                </div>
+
                 {contextError && (
-                  <div className="bg-red-50 border-2 border-red-100 rounded-3xl p-4 mb-6 flex items-center gap-3 text-red-500 text-base font-bold animate-pulse">
+                  <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mb-4 flex items-center gap-3 text-red-500 text-sm font-bold">
                     <span>⚠️</span> {contextError}
                   </div>
                 )}
-                <form onSubmit={handleNameSubmit} className="flex flex-col gap-5">
+
+                <form onSubmit={handleNameSubmit} className="flex-1 flex flex-col">
                   <label htmlFor="join-name-input" className="sr-only">Your Name</label>
                   <input
                     id="join-name-input"
@@ -338,27 +378,31 @@ const AppContent: React.FC = () => {
                     value={joinName}
                     onChange={(e) => setJoinName(e.target.value)}
                     placeholder="Your Name"
-                    className="bg-gray-50 border-2 border-transparent focus:border-cloud-primary rounded-3xl p-6 text-cloud-text placeholder:text-gray-400 focus:outline-none transition-all text-2xl font-bold text-center shadow-inner"
+                    className="w-full bg-gray-50 border-2 border-transparent focus:border-black/10 rounded-2xl p-5 text-cloud-text placeholder:text-gray-300 focus:outline-none transition-all text-xl font-bold text-center"
                     autoFocus
                   />
-                  <div className="flex gap-4 mt-4">
+
+                  <div className="flex-1 min-h-[40px] md:min-h-[20px]" />
+
+                  {/* Mobile: stacked buttons, Desktop: side by side */}
+                  <div className="space-y-3 md:space-y-0 md:flex md:gap-4">
                     <button
                       type="button"
                       onClick={handleCloseJoinModal}
-                      className="flex-1 py-5 rounded-3xl font-bold text-lg text-cloud-subtext hover:bg-gray-50 transition-colors hover:scale-105 active:scale-95"
+                      className="hidden md:block flex-1 py-5 rounded-2xl font-bold text-base text-cloud-subtext hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={!joinName.trim() || isProcessing}
-                      className="flex-1 py-5 bg-cloud-primary text-white rounded-3xl font-bold text-lg shadow-lg hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center hover:scale-105 active:scale-95 hover:shadow-xl"
+                      className="w-full md:flex-1 py-5 bg-black text-white rounded-2xl font-bold text-lg shadow-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed flex justify-center items-center active:scale-[0.98]"
                     >
-                      {isProcessing ? 'Joining...' : 'Join'}
+                      {isProcessing ? 'Joining...' : 'Join Split'}
                     </button>
                   </div>
                 </form>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -377,16 +421,17 @@ const AppContent: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100vh-100px)] -mt-20">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100dvh-100px)] -mt-20">
         {step === AppStep.UPLOAD && (
           <div className="flex flex-col items-center pt-8 justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
 
             {/* Logo - Centered */}
-            <div className="mb-12 text-center group cursor-pointer" onClick={handleReset}>
+            <div className="mb-10 text-center group cursor-pointer" onClick={handleReset}>
               <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
                 <span className="absolute inset-0 text-stroke-8 text-white z-0" aria-hidden="true">splitto</span>
                 <span className="relative z-10">splitto</span>
               </h1>
+              <p className="text-cloud-subtext text-base md:text-lg font-medium mt-2 tracking-wide">The right way to split</p>
             </div>
 
             {/* Tabs */}

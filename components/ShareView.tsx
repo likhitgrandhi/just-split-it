@@ -238,7 +238,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
                 key={data.user.id}
                 ref={(el) => { cardRefs.current[data.user.id] = el; }}
                 className="snap-center shrink-0 w-full max-w-xs md:max-w-sm bg-white border border-black/5 rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group"
-                style={{ height: 'min(550px, 80vh)' }}
+                style={{ height: 'min(550px, 75dvh)' }}
               >
                 {/* Card Header */}
                 <div className="p-8 pb-4 flex flex-col items-center">
