@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge } from 'lucide-react';
+import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge, Loader2 } from 'lucide-react';
 import { useSplit } from '../contexts/SplitContext';
 
 interface SplitterProps {
@@ -13,6 +13,15 @@ interface SplitterProps {
 }
 
 export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, onClose }) => {
+  const itemListRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll to top on mount
+  React.useEffect(() => {
+    if (itemListRef.current) {
+      itemListRef.current.scrollTop = 0;
+    }
+  }, []);
+
   const {
     items, setItems,
     users,
@@ -65,13 +74,25 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
   }, [items, users]);
 
   const [mobileTab, setMobileTab] = useState<'items' | 'total'>('items');
+  const [isEnding, setIsEnding] = useState(false);
+
+  const handleEndSplit = async () => {
+    if (confirm('Are you sure you want to end this split? This cannot be undone.')) {
+      setIsEnding(true);
+      try {
+        await endSplit();
+      } finally {
+        setIsEnding(false);
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4 lg:gap-6 overflow-hidden relative">
       {/* Left Column: Items List */}
       <div className="flex-1 flex flex-col min-h-0 bg-pastel-blue rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-black/5 shadow-sm transition-all duration-300 pb-28 lg:pb-0">
         {/* Mobile Header - Compact */}
-        <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-black/5 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+        <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-black/5 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
@@ -110,14 +131,11 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                   <Lock size={16} />
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm('End this split?')) {
-                      endSplit();
-                    }
-                  }}
-                  className="p-2 rounded-xl bg-red-100 text-red-600 active:bg-red-200 transition-colors"
+                  onClick={handleEndSplit}
+                  disabled={isEnding}
+                  className="p-2 rounded-xl bg-red-100 text-red-600 active:bg-red-200 transition-colors disabled:opacity-50"
                 >
-                  <X size={16} />
+                  {isEnding ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
                 </button>
               </>
             )}
@@ -185,14 +203,18 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                   {splitStatus === 'locked' ? 'Unlock' : 'Lock'}
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm('Are you sure you want to end this split? This cannot be undone.')) {
-                      endSplit();
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl font-bold uppercase tracking-wider text-xs bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200 transition-colors"
+                  onClick={handleEndSplit}
+                  disabled={isEnding}
+                  className="px-4 py-2 rounded-xl font-bold uppercase tracking-wider text-xs bg-red-100 text-red-600 border-2 border-red-200 hover:bg-red-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
-                  End
+                  {isEnding ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Ending...
+                    </>
+                  ) : (
+                    'End'
+                  )}
                 </button>
               </div>
             )}
@@ -220,7 +242,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
+        <div ref={itemListRef} className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
           {items.map(item => {
             const isUnassigned = item.assignedTo.length === 0;
             const canSplit = (item.quantity || 1) > 1;

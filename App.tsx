@@ -189,8 +189,9 @@ const AppContent: React.FC = () => {
         console.log('🚀 Room active - closing join modal');
         setIsJoining(false);
       }
-      // Ensure we're on the split step
-      if (step !== AppStep.SPLIT) {
+      // Ensure we're on the split step ONLY if we're in the setup phase
+      // This allows users to be on SHARE or other views without being forced back
+      if (step === AppStep.UPLOAD || step === AppStep.USERS) {
         console.log('🚀 Room active - navigating to split view');
         setStep(AppStep.SPLIT);
       }
@@ -214,7 +215,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-x-hidden">
+    <div className="h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
       {isRestoring && (
         <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <div className="w-16 h-16 border-8 border-cloud-primary border-t-transparent rounded-full animate-spin"></div>
@@ -427,7 +428,7 @@ const AppContent: React.FC = () => {
       {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-8 flex flex-col min-h-0">
         {step === AppStep.UPLOAD && (
-          <div className="flex flex-col items-center justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
+          <div className="flex flex-col items-center justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto overflow-y-auto no-scrollbar">
 
             {/* Logo - Centered */}
             <div className="mb-4 md:mb-8 text-center group cursor-pointer pt-1" onClick={handleReset}>
@@ -513,7 +514,7 @@ const AppContent: React.FC = () => {
 
         {
           step === AppStep.USERS && (
-            <div className="flex justify-center flex-1 items-center animate-fade-in">
+            <div className="flex justify-center flex-1 items-center animate-fade-in overflow-y-auto">
               <div className="w-full max-w-lg bg-white rounded-[3rem] p-8 md:p-10 shadow-soft border border-white/50">
                 <UserSetup
                   users={users}
