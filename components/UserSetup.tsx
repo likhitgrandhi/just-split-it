@@ -147,7 +147,7 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
     );
   }
 
-  // Desktop: Card view with wrapper
+  // Desktop: Card view (original)
   return (
     <div className="flex justify-center flex-1 items-center animate-fade-in p-4">
       <div className="w-full max-w-lg flex flex-col bg-pastel-purple rounded-[3rem] p-8 md:p-10 shadow-sm border border-black/5 relative">
