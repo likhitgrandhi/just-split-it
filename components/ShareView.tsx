@@ -60,7 +60,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
       position: 'fixed',
       top: '-10000px',
       left: '-10000px',
-      width: '375px',
+      width: '400px', // Fixed reasonable width for the image
       height: 'auto',
       maxHeight: 'none',
       transform: 'none',
@@ -222,12 +222,11 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
         </div>
       </div>
 
-      {/* Carousel Container */}
-      <div className="flex-1 flex items-center justify-start overflow-hidden relative min-h-0">
+      {/* Vertical Stack Container */}
+      <div className="flex-1 overflow-y-auto relative min-h-0 w-full bg-gray-50/50">
         <div
           ref={scrollContainerRef}
-          className="w-full h-full overflow-x-auto flex gap-3 md:gap-6 snap-x snap-mandatory no-scrollbar px-3 md:px-8 items-center py-2"
-          style={{ scrollBehavior: 'smooth' }}
+          className="w-full min-h-full flex flex-col gap-6 items-center py-8 px-4"
         >
           {userSplits.map((data) => {
             const isCopying = copyingId === data.user.id;
@@ -237,8 +236,8 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
               <div
                 key={data.user.id}
                 ref={(el) => { cardRefs.current[data.user.id] = el; }}
-                className="snap-center shrink-0 w-[85vw] max-w-xs md:max-w-sm bg-white border border-black/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group"
-                style={{ height: 'min(500px, 70dvh)' }}
+                className="w-full max-w-md bg-white border border-black/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group transition-transform hover:scale-[1.01] duration-300"
+                style={{ height: 'auto' }}
               >
                 {/* Card Header */}
                 <div className="p-6 md:p-8 pb-3 md:pb-4 flex flex-col items-center">
@@ -318,18 +317,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
         </div>
       </div>
 
-      {/* Scroll Indicators / Hint */}
-      <div className="flex justify-center gap-1.5 md:gap-2 pb-4 md:pb-6 flex-shrink-0">
-        {userSplits.map((_, idx) => (
-          <div
-            key={idx}
-            className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-200"
-          />
-        ))}
-      </div>
-      <div className="text-center text-cloud-subtext text-[10px] uppercase tracking-widest pb-3 md:hidden flex-shrink-0">
-        ← Swipe for more →
-      </div>
+
 
       {/* Toast Notifications */}
       {toasts.map(toast => (
