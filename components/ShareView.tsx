@@ -189,34 +189,34 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in">
+    <div className="flex flex-col h-full animate-fade-in bg-white">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 md:mb-6 px-2">
-        <div className="flex gap-4">
+      <div className="flex items-center justify-between p-4 md:px-6 md:py-4 border-b border-gray-100 md:border-none">
+        <div className="flex gap-3 md:gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-1 md:gap-2 text-nike-subtext active:text-white md:hover:text-white transition-colors group touch-manipulation"
+            className="flex items-center gap-1 md:gap-2 text-cloud-subtext active:text-black md:hover:text-black transition-colors group touch-manipulation"
           >
             <ArrowLeft size={18} className="md:group-hover:-translate-x-1 transition-transform" />
             <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Back</span>
           </button>
           <button
             onClick={onHome}
-            className="flex items-center gap-1 md:gap-2 text-nike-subtext active:text-white md:hover:text-white transition-colors group touch-manipulation"
+            className="flex items-center gap-1 md:gap-2 text-cloud-subtext active:text-black md:hover:text-black transition-colors group touch-manipulation"
           >
             <Home size={18} />
-            <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Home</span>
+            <span className="font-bold uppercase tracking-wider text-xs md:text-sm hidden md:inline">Home</span>
           </button>
         </div>
 
         <div className="flex flex-col items-end">
-          <h1 className="text-2xl md:text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
-            <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+          <h1 className="text-xl md:text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block">
+            <span className="absolute inset-0 text-stroke-2 md:text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
             <span className="relative z-10">splitto</span>
           </h1>
           {isLiveMode && pin && (
-            <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-white/70 hover:text-white transition-colors">
-              PIN: <span className="font-bold text-white">{pin}</span> <Copy size={10} />
+            <button onClick={handleSharePin} className="flex items-center gap-1 text-[10px] md:text-xs font-mono text-cloud-subtext active:text-black transition-colors">
+              PIN: <span className="font-bold text-black">{pin}</span> <Copy size={10} />
             </button>
           )}
         </div>
@@ -226,7 +226,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
       <div className="flex-1 flex items-center justify-start overflow-hidden relative">
         <div
           ref={scrollContainerRef}
-          className="w-full h-full overflow-x-auto flex gap-4 md:gap-6 snap-x snap-mandatory no-scrollbar px-4 md:px-8 items-center pb-8"
+          className="w-full h-full overflow-x-auto flex gap-3 md:gap-6 snap-x snap-mandatory no-scrollbar px-4 md:px-8 items-center py-4"
           style={{ scrollBehavior: 'smooth' }}
         >
           {userSplits.map((data) => {
@@ -237,46 +237,46 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
               <div
                 key={data.user.id}
                 ref={(el) => { cardRefs.current[data.user.id] = el; }}
-                className="snap-center shrink-0 w-full max-w-xs md:max-w-sm bg-white border border-black/5 rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group"
-                style={{ height: 'min(550px, 75dvh)' }}
+                className="snap-center shrink-0 w-[85vw] max-w-xs md:max-w-sm bg-white border border-black/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group"
+                style={{ height: 'min(500px, 70dvh)' }}
               >
                 {/* Card Header */}
-                <div className="p-8 pb-4 flex flex-col items-center">
+                <div className="p-6 md:p-8 pb-3 md:pb-4 flex flex-col items-center">
                   <div
-                    className={`w-20 h-20 rounded-full mb-4 flex items-center justify-center shadow-md border-4 border-white ${!isHex ? data.user.color : ''}`}
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-full mb-3 md:mb-4 flex items-center justify-center shadow-md border-4 border-white ${!isHex ? data.user.color : ''}`}
                     style={isHex ? { backgroundColor: data.user.color } : {}}
                   >
-                    <span className="text-3xl font-black text-white">{data.user.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-2xl md:text-3xl font-black text-white">{data.user.name.charAt(0).toUpperCase()}</span>
                   </div>
-                  <h3 className="text-2xl font-black text-black mb-1 text-center">
+                  <h3 className="text-xl md:text-2xl font-black text-black mb-1 text-center">
                     {data.user.name}
                   </h3>
-                  <div className="text-gray-400 text-xs font-bold uppercase tracking-widest">
+                  <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-widest">
                     Total Share
                   </div>
                 </div>
 
                 {/* Amount */}
-                <div className="flex justify-center py-4">
-                  <span className="text-4xl font-black text-black bg-pastel-yellow px-6 py-2 rounded-2xl transform -rotate-2 shadow-sm border border-black/5">
+                <div className="flex justify-center py-3 md:py-4">
+                  <span className="text-3xl md:text-4xl font-black text-black bg-pastel-yellow px-5 md:px-6 py-2 rounded-xl md:rounded-2xl transform -rotate-2 shadow-sm border border-black/5">
                     {currency}{data.total.toFixed(2)}
                   </span>
                 </div>
 
                 {/* Item List */}
-                <div className="flex-1 overflow-y-auto px-6 pb-20 md:pb-24 no-scrollbar space-y-2 mt-2">
+                <div className="flex-1 overflow-y-auto px-5 md:px-6 pb-20 no-scrollbar space-y-1.5 md:space-y-2 mt-1 md:mt-2">
                   {data.items.length === 0 ? (
                     <div className="text-center text-gray-400 text-sm py-8 font-medium">
                       No items assigned
                     </div>
                   ) : (
                     data.items.map((item, idx) => (
-                      <div key={`${item.id}-${idx}`} className="flex justify-between items-center text-sm group/item p-2 hover:bg-gray-50 rounded-xl transition-colors">
-                        <span className="text-gray-600 font-bold truncate max-w-[180px] flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover/item:bg-black transition-colors"></div>
+                      <div key={`${item.id}-${idx}`} className="flex justify-between items-center text-xs md:text-sm group/item p-1.5 md:p-2 active:bg-gray-50 md:hover:bg-gray-50 rounded-lg md:rounded-xl transition-colors">
+                        <span className="text-gray-600 font-bold truncate max-w-[150px] md:max-w-[180px] flex items-center gap-1.5 md:gap-2">
+                          <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-gray-300"></div>
                           {item.name}
                         </span>
-                        <span className="font-bold text-black bg-gray-100 px-2 py-1 rounded-lg text-xs">
+                        <span className="font-bold text-black bg-gray-100 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs">
                           {currency}{item.splitPrice.toFixed(2)}
                         </span>
                       </div>
@@ -284,19 +284,19 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
                   )}
 
                   {/* Branding Footer */}
-                  <div className="pt-8 pb-4 flex justify-center opacity-30">
-                    <span className="text-[10px] font-bold uppercase tracking-widest">splitto</span>
+                  <div className="pt-6 md:pt-8 pb-2 md:pb-4 flex justify-center opacity-30">
+                    <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest">splitto</span>
                   </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent ignore-in-capture pt-12">
+                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-white via-white to-transparent ignore-in-capture pt-10 md:pt-12">
                   <button
                     onClick={() => handleCopyImage(data.user.id, data.user.name)}
                     disabled={isCopying}
                     className={`
-                        w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 touch-manipulation shadow-lg
-                        ${isCopying ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-black text-white hover:bg-gray-800 active:scale-95'}
+                        w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-all flex items-center justify-center gap-2 touch-manipulation shadow-lg
+                        ${isCopying ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-black text-white active:bg-gray-800 active:scale-[0.98]'}
                     `}
                   >
                     {isCopying ? (
@@ -306,8 +306,8 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
                       </>
                     ) : (
                       <>
-                        <Copy size={14} />
-                        Save Image
+                        <Share2 size={14} />
+                        Share
                       </>
                     )}
                   </button>
@@ -319,16 +319,16 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
       </div>
 
       {/* Scroll Indicators / Hint */}
-      <div className="flex justify-center gap-2 pb-6">
+      <div className="flex justify-center gap-1.5 md:gap-2 pb-4 md:pb-6">
         {userSplits.map((_, idx) => (
           <div
             key={idx}
-            className="w-2 h-2 rounded-full bg-white/20"
+            className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-200"
           />
         ))}
       </div>
-      <div className="text-center text-nike-subtext text-[10px] uppercase tracking-widest pb-4 md:hidden">
-        Swipe for more
+      <div className="text-center text-cloud-subtext text-[10px] uppercase tracking-widest pb-3 md:hidden">
+        ← Swipe for more →
       </div>
 
       {/* Toast Notifications */}

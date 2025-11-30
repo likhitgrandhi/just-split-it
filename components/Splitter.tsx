@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Share2, Lock, Check, Plus, ArrowRight, X } from 'lucide-react';
+import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge } from 'lucide-react';
 import { useSplit } from '../contexts/SplitContext';
 
 interface SplitterProps {
@@ -26,7 +26,9 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
     toggleLock,
     endSplit,
     leaveSplit,
-    isLiveMode
+    isLiveMode,
+    splitItem,
+    mergeItems
   } = useSplit();
 
   const toggleAssignment = (itemId: string, userId: string) => {
@@ -65,10 +67,86 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
   const [mobileTab, setMobileTab] = useState<'items' | 'total'>('items');
 
   return (
-    <div className="flex flex-col lg:flex-row h-full gap-6 overflow-hidden relative">
+    <div className="flex flex-col lg:flex-row h-full gap-4 lg:gap-6 overflow-hidden relative">
       {/* Left Column: Items List */}
-      <div className="flex-1 flex flex-col min-h-0 bg-pastel-blue rounded-[3rem] overflow-hidden border border-black/5 shadow-sm transition-all duration-300 pb-24 lg:pb-0">
-        <div className="bg-white/50 backdrop-blur-sm border-b border-black/5 p-6 flex justify-between items-center sticky top-0 z-10">
+      <div className="flex-1 flex flex-col min-h-0 bg-pastel-blue rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-black/5 shadow-sm transition-all duration-300 pb-28 lg:pb-0">
+        {/* Mobile Header - Compact */}
+        <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-black/5 px-4 py-3 flex justify-between items-center sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="p-2 -ml-2 rounded-full active:bg-black/5 text-black/40 active:text-black transition-colors"
+            >
+              <X size={22} />
+            </button>
+            <h1 className="text-2xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block">
+              <span className="absolute inset-0 text-stroke-2 text-white z-0" aria-hidden="true">splitto</span>
+              <span className="relative z-10">splitto</span>
+            </h1>
+            {splitStatus === 'locked' && <span className="text-[10px] font-bold text-white bg-black px-2 py-0.5 rounded-full">🔒</span>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Live mode: Host waiting to start */}
+            {isHost && isLiveMode && splitStatus === 'waiting' && (
+              <button
+                onClick={startRoom}
+                className="bg-black text-white px-4 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] active:bg-gray-800 transition-all shadow-md"
+              >
+                Start
+              </button>
+            )}
+
+            {/* Live mode: Host controls */}
+            {isHost && isLiveMode && splitStatus !== 'waiting' && (
+              <>
+                <button
+                  onClick={toggleLock}
+                  className={`p-2 rounded-xl transition-colors ${splitStatus === 'locked'
+                    ? 'bg-black text-white'
+                    : 'bg-white text-black border border-black/10'
+                    }`}
+                >
+                  <Lock size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm('End this split?')) {
+                      endSplit();
+                    }
+                  }}
+                  className="p-2 rounded-xl bg-red-100 text-red-600 active:bg-red-200 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </>
+            )}
+
+            {/* Live mode: Non-host leave */}
+            {!isHost && isLiveMode && (
+              <button
+                onClick={() => {
+                  if (confirm('Leave this split?')) {
+                    leaveSplit();
+                  }
+                }}
+                className="px-3 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] bg-gray-100 text-gray-600 active:bg-gray-200 transition-colors"
+              >
+                Leave
+              </button>
+            )}
+
+            <button
+              onClick={onShare}
+              className="p-2.5 rounded-full bg-white text-black border border-black/5 active:bg-gray-50 transition-all shadow-sm"
+            >
+              <Share2 size={18} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden lg:flex bg-white/50 backdrop-blur-sm border-b border-black/5 p-6 justify-between items-center sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <button
               onClick={onClose}
@@ -145,13 +223,47 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4">
           {items.map(item => {
             const isUnassigned = item.assignedTo.length === 0;
+            const canSplit = (item.quantity || 1) > 1;
+            const isSplitItem = !!item.splitGroupId;
+            const siblingCount = isSplitItem ? items.filter(i => i.splitGroupId === item.splitGroupId).length : 0;
+            const canMerge = isSplitItem && siblingCount > 1;
 
             return (
               <div key={item.id} className="bg-white rounded-[2rem] p-5 shadow-sm border border-black/5 hover:shadow-md transition-all group">
                 <div className="flex justify-between items-start mb-4 gap-4">
-                  <h3 className="font-bold text-black text-xl leading-tight flex-1">{item.name}</h3>
-                  <div className="font-black text-black text-xl bg-pastel-yellow px-3 py-1 rounded-lg transform -rotate-2 shadow-sm border border-black/5">
-                    {currency}{item.price.toFixed(2)}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <h3 className="font-bold text-black text-xl leading-tight truncate">{item.name}</h3>
+                    {/* Split button - show for items with quantity > 1 */}
+                    {canSplit && (
+                      <button
+                        onClick={() => splitItem(item.id)}
+                        className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex items-center justify-center transition-colors"
+                        title="Split into individual items"
+                      >
+                        <Scissors size={14} className="text-gray-600" />
+                      </button>
+                    )}
+                    {/* Merge button - show for split items */}
+                    {canMerge && (
+                      <button
+                        onClick={() => mergeItems(item.splitGroupId!)}
+                        className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 hover:bg-blue-200 active:bg-blue-300 flex items-center justify-center transition-colors"
+                        title="Merge back together"
+                      >
+                        <Merge size={14} className="text-blue-600" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Quantity badge */}
+                    {(item.quantity || 1) > 1 && (
+                      <div className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                        ×{item.quantity}
+                      </div>
+                    )}
+                    <div className="font-black text-black text-xl bg-pastel-yellow px-3 py-1 rounded-lg transform -rotate-2 shadow-sm border border-black/5">
+                      {currency}{item.price.toFixed(2)}
+                    </div>
                   </div>
                 </div>
 
@@ -205,36 +317,40 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
         </div>
 
         {/* Mobile Total Breakdown Overlay */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
-          <div className="pointer-events-auto bg-white rounded-[2.5rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.1)] border border-black/5 overflow-hidden transition-all duration-500 ease-spring"
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-3 pointer-events-none">
+          <div className="pointer-events-auto bg-white rounded-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.15)] border border-black/5 overflow-hidden transition-all duration-500 ease-spring"
             style={{
-              maxHeight: mobileTab === 'total' ? '80vh' : '100px',
+              maxHeight: mobileTab === 'total' ? '70vh' : '88px',
             }}
           >
             <button
               onClick={() => setMobileTab(mobileTab === 'items' ? 'total' : 'items')}
-              className="w-full p-6 flex items-center justify-between bg-white active:bg-gray-50 transition-colors"
+              className="w-full p-4 flex items-center justify-between bg-white active:bg-gray-50 transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className="bg-black text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg">
-                  <span className="text-xl">Σ</span>
+              <div className="flex items-center gap-3">
+                <div className="bg-black text-white w-11 h-11 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-lg">Σ</span>
                 </div>
                 <div className="text-left">
-                  <div className="text-xs font-bold uppercase tracking-widest text-gray-400">Your Total</div>
-                  <div className="text-2xl font-black text-black">
-                    {currency}{(totals.userTotals[currentUser?.id || ''] || 0).toFixed(2)}
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                    {isLiveMode ? 'Your Total' : 'Grand Total'}
+                  </div>
+                  <div className="text-xl font-black text-black">
+                    {currency}{isLiveMode
+                      ? (totals.userTotals[currentUser?.id || ''] || 0).toFixed(2)
+                      : totals.grandTotal.toFixed(2)
+                    }
                   </div>
                 </div>
               </div>
-              <div className={`w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
-                <ArrowRight className="-rotate-90" size={20} />
+              <div className={`w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
+                <ArrowRight className="-rotate-90" size={18} />
               </div>
             </button>
 
-            <div className="px-6 pb-6 overflow-y-auto max-h-[calc(80vh-100px)]">
-
+            <div className="px-4 pb-4 overflow-y-auto max-h-[calc(70vh-88px)]">
               {mobileTab === 'total' && (
-                <div className="space-y-3 pt-2">
+                <div className="space-y-2 pt-1">
                   {users.map(user => {
                     const userTotal = items
                       .filter(item => item.assignedTo.includes(user.id))
@@ -246,38 +362,38 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                     return (
                       <div
                         key={user.id}
-                        className="bg-white rounded-[2rem] p-5 shadow-sm border border-black/5"
+                        className="bg-gray-50 rounded-2xl p-4"
                       >
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
                             <div
-                              className={`w-12 h-12 rounded-full flex items-center justify-center text-base font-black text-white border-2 border-white shadow-sm ${!isHex ? user.color : ''}`}
+                              className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shadow-sm ${!isHex ? user.color : ''}`}
                               style={isHex ? { backgroundColor: user.color } : {}}
                             >
                               {user.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-bold text-black text-lg flex items-center gap-2">
+                              <div className="font-bold text-black text-base flex items-center gap-1.5">
                                 {user.name}
-                                {isMe && <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
+                                {isMe && <span className="text-[9px] bg-black text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
                               </div>
-                              <div className="text-xs text-gray-500 font-bold">
+                              <div className="text-[10px] text-gray-500 font-bold">
                                 {items.filter(i => i.assignedTo.includes(user.id)).length} items
                               </div>
                             </div>
                           </div>
-                          <div className="text-2xl font-black text-black bg-pastel-yellow px-3 py-1 rounded-xl transform rotate-2">
+                          <div className="text-lg font-black text-black bg-pastel-yellow px-2.5 py-1 rounded-lg">
                             {currency}{userTotal.toFixed(2)}
                           </div>
                         </div>
 
-                        <div className="space-y-2 pl-4 border-l-2 border-gray-100 ml-6">
+                        <div className="space-y-1.5 pl-3 border-l-2 border-gray-200 ml-5">
                           {items
                             .filter(item => item.assignedTo.includes(user.id))
                             .map(item => (
-                              <div key={item.id} className="flex justify-between items-center text-sm group">
+                              <div key={item.id} className="flex justify-between items-center text-xs">
                                 <span className="font-medium text-gray-600 truncate max-w-[140px]">{item.name}</span>
-                                <span className="font-bold text-black bg-gray-50 px-2 py-0.5 rounded-md">{(item.price / item.assignedTo.length).toFixed(2)}</span>
+                                <span className="font-bold text-black bg-white px-1.5 py-0.5 rounded">{currency}{(item.price / item.assignedTo.length).toFixed(2)}</span>
                               </div>
                             ))}
                         </div>
@@ -285,10 +401,10 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                     );
                   })}
 
-                  <div className="p-6 bg-black rounded-[2rem] text-white shadow-lg mt-4">
+                  <div className="p-4 bg-black rounded-2xl text-white shadow-lg mt-2">
                     <div className="flex justify-between items-center">
-                      <div className="text-white/60 text-sm font-bold uppercase tracking-widest">Grand Total</div>
-                      <div className="text-4xl font-black">
+                      <div className="text-white/60 text-xs font-bold uppercase tracking-widest">Grand Total</div>
+                      <div className="text-2xl font-black">
                         {currency}{items.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
                       </div>
                     </div>
@@ -297,106 +413,106 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Right Column: Users & Totals - Desktop Only */}
-          <div className="hidden lg:flex w-96 bg-pastel-pink rounded-[3rem] overflow-hidden border border-black/5 shadow-sm flex-col">
-            <div className="p-8 border-b border-black/5 flex justify-between items-center bg-white/30 backdrop-blur-sm">
-              <h2 className="text-2xl font-black tracking-tight text-black">
-                Total Breakdown
-              </h2>
-              <div className="flex -space-x-3">
-                {users.slice(0, 3).map(user => {
-                  const isHex = user.color.startsWith('#');
-                  return (
+      {/* Right Column: Users & Totals - Desktop Only */}
+      <div className="hidden lg:flex w-96 bg-pastel-pink rounded-[3rem] overflow-hidden border border-black/5 shadow-sm flex-col">
+        <div className="p-8 border-b border-black/5 flex justify-between items-center bg-white/30 backdrop-blur-sm">
+          <h2 className="text-2xl font-black tracking-tight text-black">
+            Total Breakdown
+          </h2>
+          <div className="flex -space-x-3">
+            {users.slice(0, 3).map(user => {
+              const isHex = user.color.startsWith('#');
+              return (
+                <div
+                  key={user.id}
+                  className={`w-10 h-10 rounded-full border-4 border-white flex items-center justify-center text-xs font-black text-white shadow-sm ${!isHex ? user.color : ''}`}
+                  style={isHex ? { backgroundColor: user.color } : {}}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+              );
+            })}
+            {users.length > 3 && (
+              <div className="w-10 h-10 rounded-full border-4 border-white bg-black flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                +{users.length - 3}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {users.map(user => {
+            const userTotal = items
+              .filter(item => item.assignedTo.includes(user.id))
+              .reduce((sum, item) => sum + (item.price / item.assignedTo.length), 0);
+
+            const isMe = currentUser?.id === user.id;
+            const isHex = user.color.startsWith('#');
+
+            return (
+              <div
+                key={user.id}
+                className={`
+                  p-6 rounded-[2.5rem] border-2 transition-all shadow-sm hover:shadow-md bg-white
+                  ${isMe ? 'border-black scale-[1.02]' : 'border-transparent hover:border-black/10'}
+                `}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
                     <div
-                      key={user.id}
-                      className={`w-10 h-10 rounded-full border-4 border-white flex items-center justify-center text-xs font-black text-white shadow-sm ${!isHex ? user.color : ''}`}
+                      className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-black text-white border-4 border-white shadow-md ${!isHex ? user.color : ''}`}
                       style={isHex ? { backgroundColor: user.color } : {}}
                     >
                       {user.name.charAt(0).toUpperCase()}
                     </div>
-                  );
-                })}
-                {users.length > 3 && (
-                  <div className="w-10 h-10 rounded-full border-4 border-white bg-black flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                    +{users.length - 3}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {users.map(user => {
-                const userTotal = items
-                  .filter(item => item.assignedTo.includes(user.id))
-                  .reduce((sum, item) => sum + (item.price / item.assignedTo.length), 0);
-
-                const isMe = currentUser?.id === user.id;
-                const isHex = user.color.startsWith('#');
-
-                return (
-                  <div
-                    key={user.id}
-                    className={`
-                  p-6 rounded-[2.5rem] border-2 transition-all shadow-sm hover:shadow-md bg-white
-                  ${isMe ? 'border-black scale-[1.02]' : 'border-transparent hover:border-black/10'}
-                `}
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-black text-white border-4 border-white shadow-md ${!isHex ? user.color : ''}`}
-                          style={isHex ? { backgroundColor: user.color } : {}}
-                        >
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="font-bold text-black text-xl flex items-center gap-2">
-                            {user.name}
-                            {isMe && <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
-                          </div>
-                          <div className="text-xs text-gray-500 font-bold mt-0.5">
-                            {items.filter(i => i.assignedTo.includes(user.id)).length} items
-                          </div>
-                        </div>
+                    <div>
+                      <div className="font-bold text-black text-xl flex items-center gap-2">
+                        {user.name}
+                        {isMe && <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
+                      </div>
+                      <div className="text-xs text-gray-500 font-bold mt-0.5">
+                        {items.filter(i => i.assignedTo.includes(user.id)).length} items
                       </div>
                     </div>
-
-                    <div className="flex justify-center mb-6">
-                      <div className="text-3xl font-black text-black bg-pastel-yellow px-6 py-2 rounded-2xl transform -rotate-1 shadow-sm border border-black/5 inline-block">
-                        {currency}{userTotal.toFixed(2)}
-                      </div>
-                    </div>
-
-                    {/* Mini breakdown of items */}
-                    <div className="space-y-2 bg-gray-50 rounded-2xl p-4">
-                      {items
-                        .filter(item => item.assignedTo.includes(user.id))
-                        .map(item => (
-                          <div key={item.id} className="flex justify-between items-center text-sm font-medium text-gray-600 group hover:bg-white p-1 rounded-lg transition-colors">
-                            <span className="truncate max-w-[140px] flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-black transition-colors"></div>
-                              {item.name}
-                            </span>
-                            <span className="text-black font-bold bg-white px-2 py-0.5 rounded-md shadow-sm text-xs">{(item.price / item.assignedTo.length).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      {items.filter(item => item.assignedTo.includes(user.id)).length === 0 && (
-                        <div className="text-center text-gray-400 text-xs font-bold py-2">No items assigned</div>
-                      )}
-                    </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
 
-            <div className="p-8 bg-black text-white">
-              <div className="flex justify-between items-end">
-                <div className="text-white/60 text-sm font-bold uppercase tracking-widest mb-1">Grand Total</div>
-                <div className="text-4xl font-black leading-none">
-                  {currency}{items.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
+                <div className="flex justify-center mb-6">
+                  <div className="text-3xl font-black text-black bg-pastel-yellow px-6 py-2 rounded-2xl transform -rotate-1 shadow-sm border border-black/5 inline-block">
+                    {currency}{userTotal.toFixed(2)}
+                  </div>
+                </div>
+
+                {/* Mini breakdown of items */}
+                <div className="space-y-2 bg-gray-50 rounded-2xl p-4">
+                  {items
+                    .filter(item => item.assignedTo.includes(user.id))
+                    .map(item => (
+                      <div key={item.id} className="flex justify-between items-center text-sm font-medium text-gray-600 group hover:bg-white p-1 rounded-lg transition-colors">
+                        <span className="truncate max-w-[140px] flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 group-hover:bg-black transition-colors"></div>
+                          {item.name}
+                        </span>
+                        <span className="text-black font-bold bg-white px-2 py-0.5 rounded-md shadow-sm text-xs">{(item.price / item.assignedTo.length).toFixed(2)}</span>
+                      </div>
+                    ))}
+                  {items.filter(item => item.assignedTo.includes(user.id)).length === 0 && (
+                    <div className="text-center text-gray-400 text-xs font-bold py-2">No items assigned</div>
+                  )}
                 </div>
               </div>
+            );
+          })}
+        </div>
+
+        <div className="p-8 bg-black text-white">
+          <div className="flex justify-between items-end">
+            <div className="text-white/60 text-sm font-bold uppercase tracking-widest mb-1">Grand Total</div>
+            <div className="text-4xl font-black leading-none">
+              {currency}{items.reduce((sum, item) => sum + item.price, 0).toFixed(2)}
             </div>
           </div>
         </div>
