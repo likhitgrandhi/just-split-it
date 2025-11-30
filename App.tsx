@@ -424,37 +424,25 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Header - Settings Only */}
-      <header className="px-6 py-6 md:px-10 md:py-8 flex justify-end items-center sticky top-0 z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          <button
-            onClick={() => setIsCurrencyOpen(true)}
-            className="w-12 h-12 rounded-full bg-white text-black hover:bg-gray-50 shadow-sm hover:shadow-md transition-all flex items-center justify-center border border-gray-100"
-          >
-            <Settings size={24} strokeWidth={2} />
-          </button>
-        </div>
-      </header>
-
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-2 md:p-8 flex flex-col min-h-0">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-8 flex flex-col min-h-0">
         {step === AppStep.UPLOAD && (
-          <div className="flex flex-col items-center pt-4 md:pt-8 justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
+          <div className="flex flex-col items-center justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
 
             {/* Logo - Centered */}
-            <div className="mb-2 md:mb-8 text-center group cursor-pointer pt-1" onClick={handleReset}>
-              <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
+            <div className="mb-4 md:mb-8 text-center group cursor-pointer pt-1" onClick={handleReset}>
+              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
                 <span className="absolute inset-0 text-stroke-8 text-white z-0" aria-hidden="true">splitto</span>
                 <span className="relative z-10">splitto</span>
               </h1>
-              <p className="text-cloud-subtext text-sm md:text-lg font-medium mt-1 md:mt-2 tracking-wide">The right way to split</p>
+              <p className="text-cloud-subtext text-base md:text-lg font-medium mt-2 tracking-wide">The right way to split</p>
             </div>
 
             {/* Tabs */}
-            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-2 md:mb-8 shadow-inner-soft flex-shrink-0">
+            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-4 md:mb-8 shadow-inner-soft flex-shrink-0">
               <button
                 onClick={() => setActiveTab('host')}
-                className={`flex-1 py-2 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'host'
+                className={`flex-1 py-3 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 transform ${activeTab === 'host'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
@@ -463,7 +451,7 @@ const AppContent: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-2 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'join'
+                className={`flex-1 py-3 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 transform ${activeTab === 'join'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
