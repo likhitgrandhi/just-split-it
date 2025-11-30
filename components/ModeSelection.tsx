@@ -58,24 +58,15 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
             return (
                 <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
                     {/* Content */}
-                    <div className="flex-1 flex flex-col p-6 pt-12 safe-area-inset">
-                        {/* Header with logo and close */}
-                        <div className="flex items-start justify-between mb-6">
+                    <div className="flex-1 flex flex-col p-6 pt-8 safe-area-inset">
+                        {/* Header with close */}
+                        <div className="flex items-start justify-between mb-4">
                             <button
                                 onClick={onClose}
                                 className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
                             >
                                 <X size={24} />
                             </button>
-                        </div>
-
-                        {/* Logo centered */}
-                        <div className="text-center mb-8">
-                            <h1 className="text-4xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
-                                <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
-                                <span className="relative z-10">splitto</span>
-                            </h1>
-                            <p className="text-cloud-subtext text-sm font-medium mt-1">The right way to split</p>
                         </div>
 
                         <div className="text-center mb-6">
