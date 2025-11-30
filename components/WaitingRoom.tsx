@@ -28,10 +28,10 @@ export const WaitingRoom: React.FC = () => {
     };
 
     return (
-        <div className="fixed inset-0 bg-white z-50 flex flex-col">
+        <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto">
             {/* Content */}
-            <div className="flex-1 flex flex-col p-6 pt-12 md:pt-6 md:items-center md:justify-center">
-                <div className="flex-1 flex flex-col md:flex-none md:bg-gray-50 md:rounded-[2.5rem] md:p-10 md:w-full md:max-w-md">
+            <div className="flex-1 flex flex-col p-6 pt-4 pb-6 md:pt-6 md:items-center md:justify-center min-h-min">
+                <div className="flex-1 flex flex-col md:flex-none md:bg-gray-50 md:rounded-[2.5rem] md:p-10 md:w-full md:max-w-md md:my-4">
                     {/* Logo */}
                     <div className="text-center mb-6 md:hidden">
                         <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
@@ -95,7 +95,7 @@ export const WaitingRoom: React.FC = () => {
                         <div className="w-2.5 h-2.5 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
 
-                    <div className="flex-1 md:flex-none" />
+                    <div className="flex-1 md:flex-none min-h-[10px]" />
 
                     {/* Actions */}
                     <div className="space-y-3 pt-4">

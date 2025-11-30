@@ -56,14 +56,14 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
     if (isMobile) {
         if (mode === 'selection') {
             return (
-                <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
+                <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in overflow-y-auto">
                     {/* Content */}
-                    <div className="flex-1 flex flex-col p-6 pt-8 safe-area-inset">
+                    <div className="flex-1 flex flex-col p-6 pt-4 pb-6 safe-area-inset min-h-min">
                         {/* Header with close */}
-                        <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-start justify-between mb-2">
                             <button
                                 onClick={onClose}
-                                className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                                className="p-2 -ml-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
                             >
                                 <X size={24} />
                             </button>
@@ -114,15 +114,15 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
 
         // Mobile Live Setup view
         return (
-            <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in">
+            <div className="fixed inset-0 bg-white z-50 flex flex-col animate-fade-in overflow-y-auto">
                 {/* Content */}
-                <div className="flex-1 flex flex-col p-6 pt-12 safe-area-inset">
+                <div className="flex-1 flex flex-col p-6 pt-4 pb-6 safe-area-inset min-h-min">
                     {/* Header with back/close */}
-                    <div className="flex items-start justify-between mb-6">
+                    <div className="flex items-start justify-between mb-2">
                         {!pin ? (
                             <button
                                 onClick={() => setMode('selection')}
-                                className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                                className="p-2 -ml-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
                             >
                                 <ArrowLeft size={24} />
                             </button>
@@ -151,12 +151,12 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                                 onKeyDown={(e) => e.key === 'Enter' && handleCreateSplit()}
                             />
 
-                            <div className="flex-1 min-h-[40px]" />
+                            <div className="flex-1 min-h-[20px]" />
 
                             <button
                                 onClick={handleCreateSplit}
                                 disabled={!hostName.trim() || isCreating}
-                                className="w-full bg-black disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-5 rounded-2xl transition-all duration-200 text-lg shadow-lg active:scale-[0.98] transform"
+                                className="w-full bg-black disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-5 rounded-2xl transition-all duration-200 text-lg shadow-lg active:scale-[0.98] transform mt-4"
                             >
                                 {isCreating ? (
                                     <span className="flex items-center justify-center gap-2">
@@ -207,7 +207,7 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                                 )}
                             </button>
 
-                            <div className="flex-1 min-h-[40px]" />
+                            <div className="flex-1 min-h-[20px]" />
 
                             <div className="space-y-3">
                                 <button

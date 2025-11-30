@@ -189,9 +189,9 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
   };
 
   return (
-    <div className="flex flex-col h-full animate-fade-in bg-white">
+    <div className="flex flex-col h-full animate-fade-in bg-white overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 md:px-6 md:py-4 border-b border-gray-100 md:border-none">
+      <div className="flex items-center justify-between p-3 md:px-6 md:py-4 border-b border-gray-100 md:border-none flex-shrink-0">
         <div className="flex gap-3 md:gap-4">
           <button
             onClick={onBack}
@@ -223,10 +223,10 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
       </div>
 
       {/* Carousel Container */}
-      <div className="flex-1 flex items-center justify-start overflow-hidden relative">
+      <div className="flex-1 flex items-center justify-start overflow-hidden relative min-h-0">
         <div
           ref={scrollContainerRef}
-          className="w-full h-full overflow-x-auto flex gap-3 md:gap-6 snap-x snap-mandatory no-scrollbar px-4 md:px-8 items-center py-4"
+          className="w-full h-full overflow-x-auto flex gap-3 md:gap-6 snap-x snap-mandatory no-scrollbar px-3 md:px-8 items-center py-2"
           style={{ scrollBehavior: 'smooth' }}
         >
           {userSplits.map((data) => {
@@ -319,7 +319,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
       </div>
 
       {/* Scroll Indicators / Hint */}
-      <div className="flex justify-center gap-1.5 md:gap-2 pb-4 md:pb-6">
+      <div className="flex justify-center gap-1.5 md:gap-2 pb-4 md:pb-6 flex-shrink-0">
         {userSplits.map((_, idx) => (
           <div
             key={idx}
@@ -327,7 +327,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
           />
         ))}
       </div>
-      <div className="text-center text-cloud-subtext text-[10px] uppercase tracking-widest pb-3 md:hidden">
+      <div className="text-center text-cloud-subtext text-[10px] uppercase tracking-widest pb-3 md:hidden flex-shrink-0">
         ← Swipe for more →
       </div>
 

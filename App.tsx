@@ -214,7 +214,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-x-hidden">
       {isRestoring && (
         <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <div className="w-16 h-16 border-8 border-cloud-primary border-t-transparent rounded-full animate-spin"></div>
@@ -222,8 +222,8 @@ const AppContent: React.FC = () => {
       )}
 
       {splitStatus === 'ended' && (
-        <div className="fixed inset-0 z-[90] bg-cloud-primary/20 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
-          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-soft text-center transform hover:scale-[1.02] transition-transform duration-500">
+        <div className="fixed inset-0 z-[90] bg-cloud-primary/20 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in overflow-y-auto">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-soft text-center transform hover:scale-[1.02] transition-transform duration-500 my-4">
             <div className="w-24 h-24 bg-cloud-light rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner-soft">
               <span className="text-5xl">🏁</span>
             </div>
@@ -258,8 +258,8 @@ const AppContent: React.FC = () => {
       )}
 
       {isCurrencyOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
-          <div className="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-soft transform transition-all">
+        <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-soft transform transition-all my-4">
             <div className="p-8 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-3xl font-bold text-cloud-text tracking-tight">Settings</h2>
               <button
@@ -295,13 +295,28 @@ const AppContent: React.FC = () => {
 
       {/* Name Input for Joining - Full screen on mobile, modal on desktop */}
       {isJoining && (
-        <div className="fixed inset-0 z-[60] bg-white md:bg-black/20 md:backdrop-blur-md flex flex-col md:items-center md:justify-center animate-fade-in">
-          <div className="flex-1 flex flex-col p-6 pt-12 md:pt-6 md:flex-none md:bg-white md:w-full md:max-w-md md:rounded-[3rem] md:p-10 md:shadow-soft">
+        <div className="fixed inset-0 z-[60] bg-white md:bg-black/20 md:backdrop-blur-md flex flex-col md:items-center md:justify-center animate-fade-in overflow-y-auto">
+          <div className="flex-1 flex flex-col p-6 pt-4 pb-6 md:pt-6 md:flex-none md:bg-white md:w-full md:max-w-md md:rounded-[3rem] md:p-10 md:shadow-soft md:my-4">
             {currentUser && splitStatus === 'waiting' ? (
               // Waiting state - shown after joining, before host starts
               <div className="flex-1 flex flex-col">
+                {/* Mobile header with back button */}
+                <div className="flex items-start justify-between mb-2 md:hidden">
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to leave this split?')) {
+                        leaveSplit();
+                        setIsJoining(false);
+                      }
+                    }}
+                    className="p-2 -ml-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                  >
+                    <ArrowRight className="rotate-180" size={24} />
+                  </button>
+                </div>
+
                 {/* Mobile logo */}
-                <div className="text-center mb-6 md:hidden">
+                <div className="text-center mb-4 md:hidden">
                   <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
                     <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
                     <span className="relative z-10">splitto</span>
@@ -321,7 +336,7 @@ const AppContent: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-1 md:flex-none" />
+                <div className="flex-1 md:flex-none min-h-[20px]" />
 
                 <button
                   type="button"
@@ -340,17 +355,17 @@ const AppContent: React.FC = () => {
               // Name entry state
               <div className="flex-1 flex flex-col">
                 {/* Mobile header with back button */}
-                <div className="flex items-start justify-between mb-4 md:hidden">
+                <div className="flex items-start justify-between mb-2 md:hidden">
                   <button
                     onClick={handleCloseJoinModal}
-                    className="p-2 -ml-2 -mt-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
+                    className="p-2 -ml-2 rounded-full active:bg-gray-100 text-gray-400 active:text-black transition-colors"
                   >
                     <ArrowRight className="rotate-180" size={24} />
                   </button>
                 </div>
 
                 {/* Mobile logo */}
-                <div className="text-center mb-6 md:hidden">
+                <div className="text-center mb-4 md:hidden">
                   <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
                     <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
                     <span className="relative z-10">splitto</span>
@@ -383,10 +398,10 @@ const AppContent: React.FC = () => {
                     autoFocus
                   />
 
-                  <div className="flex-1 min-h-[40px] md:min-h-[20px]" />
+                  <div className="flex-1 min-h-[20px] md:min-h-[20px]" />
 
                   {/* Mobile: stacked buttons, Desktop: side by side */}
-                  <div className="space-y-3 md:space-y-0 md:flex md:gap-4">
+                  <div className="space-y-3 md:space-y-0 md:flex md:gap-4 mt-4">
                     <button
                       type="button"
                       onClick={handleCloseJoinModal}
@@ -420,12 +435,12 @@ const AppContent: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 md:p-8 flex flex-col min-h-0">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-2 md:p-8 flex flex-col min-h-0">
         {step === AppStep.UPLOAD && (
           <div className="flex flex-col items-center flex-1 animate-fade-in w-full max-w-lg mx-auto min-h-0">
 
             {/* Logo - Centered */}
-            <div className="mb-4 md:mb-8 text-center group cursor-pointer pt-2" onClick={handleReset}>
+            <div className="mb-2 md:mb-8 text-center group cursor-pointer pt-1" onClick={handleReset}>
               <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
                 <span className="absolute inset-0 text-stroke-8 text-white z-0" aria-hidden="true">splitto</span>
                 <span className="relative z-10">splitto</span>
@@ -434,10 +449,10 @@ const AppContent: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-3 md:mb-8 shadow-inner-soft flex-shrink-0">
+            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-2 md:mb-8 shadow-inner-soft flex-shrink-0">
               <button
                 onClick={() => setActiveTab('host')}
-                className={`flex-1 py-2.5 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'host'
+                className={`flex-1 py-2 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'host'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
@@ -446,7 +461,7 @@ const AppContent: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-2.5 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'join'
+                className={`flex-1 py-2 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'join'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
@@ -455,7 +470,7 @@ const AppContent: React.FC = () => {
               </button>
             </div>
 
-            <div className="w-full flex-1 flex flex-col min-h-0 pb-2">
+            <div className="w-full flex-1 flex flex-col min-h-0 pb-1">
               {activeTab === 'host' ? (
                 <div className="animate-fade-in flex-1 flex flex-col min-h-0">
                   <UploadZone onFileSelect={handleFileSelect} isProcessing={isProcessing} />
