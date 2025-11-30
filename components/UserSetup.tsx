@@ -6,6 +6,7 @@ interface UserSetupProps {
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   onContinue: () => void;
+  onClose: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -20,7 +21,7 @@ const generateId = () => {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
-export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinue }) => {
+export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinue, onClose }) => {
   const [nameInput, setNameInput] = useState('');
 
   const addUser = () => {
@@ -50,53 +51,65 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
   };
 
   return (
-    <div className="w-full flex flex-col h-full">
-      <div className="mb-6 md:mb-8">
-        <h2 className="text-2xl md:text-3xl font-extrabold italic uppercase tracking-tighter mb-2 text-nike-volt">
+    <div className="w-full flex flex-col h-full bg-pastel-purple rounded-[3rem] p-8 md:p-10 shadow-sm border border-black/5 relative">
+      <button
+        onClick={onClose}
+        className="absolute top-8 right-8 p-2 rounded-full hover:bg-black/5 text-black/40 hover:text-black transition-colors"
+      >
+        <X size={24} />
+      </button>
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <h1 className="text-4xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
+            <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+            <span className="relative z-10">splitto</span>
+          </h1>
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-3 text-black">
           Who's Paying?
         </h2>
-        <p className="text-nike-subtext text-sm md:text-base">Add your crew. Separate names with commas.</p>
+        <p className="text-gray-600 text-lg font-medium">Add your crew. Separate names with commas.</p>
       </div>
 
-      <div className="relative mb-4 md:mb-6">
+      <div className="relative mb-8">
         <input
           type="text"
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="E.g. Mike, Sarah, John"
-          className="w-full bg-nike-card text-white border-none rounded-xl p-3 md:p-4 pl-3 md:pl-4 pr-11 md:pr-12 focus:ring-2 focus:ring-nike-volt focus:outline-none placeholder-nike-subtext/50 text-base md:text-lg font-medium"
+          className="w-full bg-white border-2 border-transparent focus:border-black/10 rounded-[2rem] p-6 pr-16 text-black placeholder:text-black/30 text-xl font-bold focus:outline-none shadow-sm transition-all"
           autoFocus
         />
         <button
           onClick={addUser}
           disabled={!nameInput.trim()}
-          className="absolute right-2 top-2 bottom-2 bg-nike-gray active:bg-nike-volt md:hover:bg-nike-volt active:text-black md:hover:text-black text-white p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+          className="absolute right-3 top-3 bottom-3 bg-black text-white p-3 rounded-2xl hover:bg-gray-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center aspect-square"
         >
-          <Plus size={20} />
+          <Plus size={24} strokeWidth={3} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar mb-6">
+      <div className="flex-1 overflow-y-auto no-scrollbar mb-8 min-h-[100px]">
         {users.length === 0 ? (
-          <div className="text-center py-10 opacity-30">
-            <div className="text-6xl mb-4">🏃</div>
-            <p className="uppercase font-bold tracking-widest">No friends added yet</p>
+          <div className="text-center py-8 opacity-40">
+            <div className="text-5xl mb-4 grayscale">🏃</div>
+            <p className="uppercase font-bold tracking-widest text-black text-sm">No friends added yet</p>
           </div>
         ) : (
           <div className="flex flex-wrap gap-3">
             {users.map(user => (
               <div
                 key={user.id}
-                className="flex items-center gap-2 bg-nike-card border border-nike-gray pl-3 pr-2 py-2 rounded-full animate-fade-in"
+                className="flex items-center gap-3 bg-white pl-4 pr-3 py-3 rounded-full animate-fade-in shadow-sm border border-black/5"
               >
-                <div className={`w-2 h-2 rounded-full ${user.color}`}></div>
-                <span className="font-bold text-sm uppercase tracking-wide">{user.name}</span>
+                <div className={`w-3 h-3 rounded-full ${user.color}`}></div>
+                <span className="font-bold text-base text-black">{user.name}</span>
                 <button
                   onClick={() => removeUser(user.id)}
-                  className="ml-1 p-1 hover:bg-white/10 rounded-full text-nike-subtext hover:text-white transition-colors"
+                  className="ml-1 p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-black transition-colors"
                 >
-                  <X size={14} />
+                  <X size={16} strokeWidth={3} />
                 </button>
               </div>
             ))}
@@ -107,7 +120,7 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
       <button
         onClick={onContinue}
         disabled={users.length === 0}
-        className="w-full bg-nike-volt text-black font-extrabold uppercase tracking-widest py-4 md:py-5 rounded-full active:bg-white md:hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-auto touch-manipulation text-sm md:text-base"
+        className="w-full bg-black text-white font-black text-xl py-6 rounded-[2rem] hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-auto shadow-lg hover:shadow-xl hover:-translate-y-1"
       >
         Start Splitting
       </button>

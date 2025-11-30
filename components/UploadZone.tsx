@@ -44,9 +44,10 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, isProcessi
       onDragLeave={isProcessing ? undefined : handleDragLeave}
       onDrop={isProcessing ? undefined : handleDrop}
       className={`
-        relative group cursor-pointer w-full aspect-[4/5] md:aspect-[3/2] rounded-3xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
-        ${isDragging ? 'border-nike-volt bg-nike-gray' : 'border-nike-subtext/30 hover:border-nike-white bg-nike-card'}
+        relative group cursor-pointer w-full aspect-[4/5] md:aspect-[3/2] rounded-[3rem] border-2 border-transparent transition-all duration-300 flex flex-col items-center justify-center overflow-hidden
+        ${isDragging ? 'bg-pastel-blue/80 scale-[1.02]' : 'bg-pastel-blue hover:bg-pastel-blue/80 hover:scale-[1.02]'}
         ${isProcessing ? 'opacity-80 pointer-events-none' : ''}
+        shadow-sm
       `}
     >
       <input
@@ -59,19 +60,19 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, isProcessi
 
       {isProcessing ? (
         <div className="flex flex-col items-center animate-pulse">
-          <Loader2 className="w-12 h-12 text-nike-volt animate-spin mb-4" />
-          <h3 className="text-xl font-bold text-white uppercase tracking-wider">Analyzing</h3>
-          <p className="text-nike-subtext text-sm mt-2">Extracting receipt data...</p>
+          <Loader2 className="w-16 h-16 text-black animate-spin mb-6" />
+          <h3 className="text-2xl font-bold text-black tracking-wide">Analyzing</h3>
+          <p className="text-gray-600 text-base mt-2 font-medium">Extracting receipt data...</p>
         </div>
       ) : (
-        <div className="flex flex-col items-center text-center p-6 transition-transform duration-300 group-hover:scale-105">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 ${isDragging ? 'bg-nike-volt text-black' : 'bg-nike-gray text-nike-volt'}`}>
-            <Upload className="w-8 h-8" />
+        <div className="flex flex-col items-center text-center p-8 transition-transform duration-300 group-hover:scale-105">
+          <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-8 shadow-sm transition-all duration-300 bg-white text-black group-hover:scale-110 group-hover:rotate-6`}>
+            <Upload className="w-14 h-14" strokeWidth={2} />
           </div>
-          <h3 className="text-2xl font-extrabold text-white uppercase italic tracking-tighter mb-2">
+          <h3 className="text-3xl font-black text-black mb-3 tracking-tight">
             Upload Receipt
           </h3>
-          <p className="text-nike-subtext font-medium max-w-xs">
+          <p className="text-gray-600 text-lg font-bold max-w-xs leading-relaxed opacity-80">
             Drop your bill here or tap to browse.
             <br />We'll handle the math.
           </p>

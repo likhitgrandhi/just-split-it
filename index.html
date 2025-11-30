@@ -17,37 +17,73 @@
       theme: {
         extend: {
           colors: {
-            nike: {
-              black: '#000000',
-              gray: '#121212',
-              card: '#1C1C1E',
-              volt: '#CBF300', // Nike Volt Green
-              white: '#FFFFFF',
-              subtext: '#8E8E93',
+            cloud: {
+              primary: '#000000', // Black
+              secondary: '#E5E5E5', // Light Gray for borders
+              accent: '#000000',   // Black
+              background: '#FFFFFF', // White
+              text: '#000000',    // Black
+              subtext: '#666666', // Dark Gray
+              surface: '#FFFFFF',
+              logo: '#000000',    // Light Cyan for Logo
+            },
+            pastel: {
+              purple: '#F3E8FF',
+              blue: '#E0F2FE',
+              green: '#DCFCE7',
+              yellow: '#FEF9C3',
+              pink: '#FCE7F3',
             }
           },
           fontFamily: {
-            sans: ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
-            condensed: ['Impact', 'Arial Narrow', 'sans-serif'],
+            sans: ['SF Pro Rounded', 'Nunito', 'Inter', 'sans-serif'],
+            rounded: ['SF Pro Rounded', 'Nunito', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 10px 40px -10px rgba(0, 0, 0, 0.05), 0 0 20px -5px rgba(0, 0, 0, 0.02)',
+            'inner-soft': 'inset 0 2px 10px 0 rgba(0, 0, 0, 0.02)',
+            'float': '0 20px 40px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.05)',
           },
           animation: {
-            'fade-in': 'fadeIn 0.5s ease-out forwards',
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'float': 'float 6s ease-in-out infinite',
+            'bounce-slow': 'bounce 3s infinite',
           },
           keyframes: {
             fadeIn: {
               '0%': { opacity: '0', transform: 'translateY(10px)' },
               '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-20px)' },
             }
           }
         }
-      }
+      },
+      plugins: [
+        function ({ addUtilities }) {
+          const newUtilities = {
+            '.text-stroke-4': {
+              '-webkit-text-stroke': '4px white',
+            },
+            '.text-stroke-8': {
+              '-webkit-text-stroke': '8px white',
+            },
+            '.text-stroke-cloud': {
+              '-webkit-text-stroke': '4px #000000',
+            },
+          }
+          addUtilities(newUtilities)
+        }
+      ]
     }
   </script>
   <style>
     body {
-      background-color: #000000;
-      color: #FFFFFF;
-      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E0F7FA 0%, #FFFFFF 100%);
+      color: #2C3E50;
+      font-family: 'SF Pro Rounded', 'Nunito', sans-serif;
     }
 
     /* Hide scrollbar for Chrome, Safari and Opera */
@@ -63,10 +99,11 @@
       /* Firefox */
     }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 
-<body>
+<body
+  class="bg-white font-sans antialiased text-cloud-text min-h-screen selection:bg-cloud-primary selection:text-white">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
