@@ -55,7 +55,6 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, isProcessi
         ref={fileInputRef}
         onChange={handleFileInput}
         accept="image/*"
-        capture="environment"
         className="hidden"
       />
 
