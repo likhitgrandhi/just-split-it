@@ -46,6 +46,13 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Ref to track if we're currently updating to prevent subscription loops
     const isUpdatingRef = useRef(false);
     const subscriptionRef = useRef<any>(null);
+    // Ref to track current status for use in subscription callback (avoids stale closure)
+    const splitStatusRef = useRef(splitStatus);
+    
+    // Keep the ref in sync with state
+    useEffect(() => {
+        splitStatusRef.current = splitStatus;
+    }, [splitStatus]);
     
     // Subscribe to changes when PIN is set
     useEffect(() => {
@@ -75,10 +82,20 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 // Update status if it changed
                 if (newData.data.status) {
-                    setSplitStatus(newData.data.status);
+                    const newStatus = newData.data.status;
+                    const previousStatus = splitStatusRef.current;
+                    
+                    setSplitStatus(newStatus);
+                    
+                    // If status changed to 'active' from 'waiting', ensure we're on SPLIT step
+                    // This handles the case where a joining user is waiting and host starts
+                    if (newStatus === 'active' && previousStatus === 'waiting') {
+                        console.log('🚀 Room activated - transitioning to split view');
+                        setStep(AppStep.SPLIT);
+                    }
                     
                     // If split ended, clean up local storage
-                    if (newData.data.status === 'ended') {
+                    if (newStatus === 'ended') {
                         localStorage.removeItem(STORAGE_KEY);
                     }
                 }

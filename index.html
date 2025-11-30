@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>Just Split It</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -64,6 +65,9 @@
       plugins: [
         function ({ addUtilities }) {
           const newUtilities = {
+            '.text-stroke-2': {
+              '-webkit-text-stroke': '2px white',
+            },
             '.text-stroke-4': {
               '-webkit-text-stroke': '4px white',
             },
@@ -80,6 +84,13 @@
     }
   </script>
   <style>
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
     body {
       background: linear-gradient(135deg, #E0F7FA 0%, #FFFFFF 100%);
       color: #2C3E50;
