@@ -8,7 +8,7 @@ import { ShareView } from './components/ShareView';
 import { Toast } from './components/Toast';
 import { ReceiptItem, User, AppStep } from './types';
 import { fileToGenerativePart, parseReceiptImage } from './services/geminiService';
-import { Activity, Settings, X, Users, ArrowRight } from 'lucide-react';
+import { Activity, Settings, X, Users, ArrowRight, Sparkles } from 'lucide-react';
 import { SplitProvider, useSplit } from './contexts/SplitContext';
 import { getSplitByPin } from './services/supabase';
 import { useToast } from './hooks/useToast';
@@ -48,7 +48,8 @@ const AppContent: React.FC = () => {
     isRestoring,
     pendingJoinPin,
     startManualSplit,
-    clearPendingJoinPin
+    clearPendingJoinPin,
+    leaveSplit
   } = useSplit();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -71,13 +72,6 @@ const AppContent: React.FC = () => {
     if (pendingJoinPin && !isJoining && step === AppStep.UPLOAD) {
       setJoinPin(pendingJoinPin);
       setActiveTab('join');
-      // We don't auto-submit anymore, user sees the pre-filled PIN in the new UI
-      // But wait, the requirement was "Join Split" modal. 
-      // With the new UI, "Join" is a tab. 
-      // If we have a link, maybe we should just show the Join tab with pre-filled PIN?
-      // Or should we still auto-open the name modal?
-      // Let's stick to the previous behavior: Auto-open the name modal (isJoining=true)
-      // But we should also switch the tab to 'join' so the background looks correct.
       setIsJoining(true);
     }
   }, [pendingJoinPin, isJoining, step]);
@@ -120,14 +114,11 @@ const AppContent: React.FC = () => {
       const newUser: User = {
         id: crypto.randomUUID(),
         name: hostName,
-        color: '#CBF300' // Host gets the brand color
+        color: '#2D9CDB' // Host gets the brand color
       };
 
-      setUsers([newUser]);
-      setCurrentUser(newUser);
-
-      // Create the split
-      await createSplit();
+      // Pass user and items directly to avoid async state update race condition
+      await createSplit([newUser], items);
 
       // We don't close the modal yet, we wait for the PIN to be shown
     } catch (error) {
@@ -155,6 +146,14 @@ const AppContent: React.FC = () => {
         setIsProcessing(false);
         return;
       }
+
+      // Check if split has ended
+      if (split.data.status === 'ended') {
+        setError('This split has already ended');
+        setIsProcessing(false);
+        return;
+      }
+
       // PIN is valid, show name modal
       setIsJoining(true);
     } catch (err) {
@@ -172,18 +171,10 @@ const AppContent: React.FC = () => {
     setIsProcessing(true);
     try {
       await joinSplit(joinPin, joinName);
-      // If the room is active, we can close the modal.
-      // If it's waiting, we keep the modal open to show the waiting screen.
-      // We'll handle this logic in the render part or via an effect.
-      // For now, just clear the inputs.
       setJoinPin('');
       setJoinName('');
     } catch (err: any) {
       console.error("Failed to join", err);
-      // alert("Failed to join split. Please check the PIN and try again."); // Removed alert
-      // Error is already set in context, but we can also show local error if needed
-      // The context error will be displayed by the UI if we use it.
-      // Let's rely on the context error or set a local one if we want to show it in the modal.
     } finally {
       setIsProcessing(false);
     }
@@ -214,24 +205,24 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-nike-black text-white selection:bg-nike-volt selection:text-black flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
       {isRestoring && (
-        <div className="fixed inset-0 z-[100] bg-nike-black flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-nike-volt border-t-transparent rounded-full animate-spin"></div>
+        <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-16 h-16 border-8 border-cloud-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       )}
 
       {splitStatus === 'ended' && (
-        <div className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-nike-card w-full max-w-md rounded-3xl p-8 border border-white/10 shadow-2xl text-center">
-            <div className="w-20 h-20 bg-nike-volt/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-4xl">🏁</span>
+        <div className="fixed inset-0 z-[90] bg-cloud-primary/20 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-soft text-center transform hover:scale-[1.02] transition-transform duration-500">
+            <div className="w-24 h-24 bg-cloud-light rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner-soft">
+              <span className="text-5xl">🏁</span>
             </div>
-            <h2 className="text-2xl font-extrabold italic uppercase tracking-tighter mb-2">Split Ended</h2>
-            <p className="text-nike-subtext mb-8">The host has ended this session.</p>
+            <h2 className="text-4xl font-bold text-cloud-text mb-4 tracking-tight">Split Ended</h2>
+            <p className="text-xl text-cloud-subtext mb-10">The host has ended this session.</p>
             <button
               onClick={handleReset}
-              className="w-full py-4 bg-nike-volt text-black rounded-xl font-bold uppercase tracking-wider hover:bg-nike-volt-hover transition-colors"
+              className="w-full py-6 bg-cloud-primary text-white rounded-3xl font-bold text-xl shadow-lg hover:bg-blue-500 transition-all transform active:scale-95 hover:shadow-xl"
             >
               Start New Split
             </button>
@@ -247,37 +238,44 @@ const AppContent: React.FC = () => {
           isCreating={false} // We could track loading state for createSplit if needed
           pin={pin}
           onProceed={handleLiveProceed}
+          onClose={() => {
+            // If a PIN was created but user cancels, clean up the split
+            if (pin) {
+              handleReset();
+            }
+            setIsModeSelectionOpen(false);
+          }}
         />
       )}
 
       {isCurrencyOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-nike-card w-full max-w-sm rounded-2xl md:rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-            <div className="p-5 md:p-6 border-b border-white/10 flex justify-between items-center">
-              <h2 className="text-lg md:text-xl font-extrabold italic uppercase tracking-tighter">Settings</h2>
+        <div className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-sm flex items-center justify-center p-6 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-soft transform transition-all">
+            <div className="p-8 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-3xl font-bold text-cloud-text tracking-tight">Settings</h2>
               <button
                 onClick={() => setIsCurrencyOpen(false)}
-                className="p-1 rounded-full active:bg-white/10 md:hover:bg-white/10 text-nike-subtext active:text-white md:hover:text-white transition-colors touch-manipulation"
+                className="p-3 rounded-full hover:bg-gray-100 text-cloud-subtext hover:text-cloud-text transition-colors transform hover:rotate-90 duration-300"
               >
-                <X size={24} />
+                <X size={32} />
               </button>
             </div>
-            <div className="p-5 md:p-6">
-              <h3 className="text-sm font-bold text-nike-subtext uppercase tracking-widest mb-4">Select Currency</h3>
-              <div className="grid grid-cols-3 gap-2 md:gap-3">
+            <div className="p-8">
+              <h3 className="text-lg font-bold text-cloud-subtext uppercase tracking-widest mb-6">Select Currency</h3>
+              <div className="grid grid-cols-3 gap-4">
                 {CURRENCIES.map(c => (
                   <button
                     key={c.code}
                     onClick={() => { setCurrency(c.symbol); setIsCurrencyOpen(false); }}
                     className={`
-                      flex flex-col items-center justify-center p-3 md:p-4 rounded-xl border transition-all touch-manipulation
+                      flex flex-col items-center justify-center p-6 rounded-3xl border-2 transition-all transform hover:scale-105 active:scale-95
                       ${currency === c.symbol
-                        ? 'bg-nike-volt text-black border-nike-volt'
-                        : 'bg-nike-gray text-white border-white/10 active:border-white/30 md:hover:border-white/30 active:bg-white/5 md:hover:bg-white/5'}
+                        ? 'bg-cloud-primary text-white border-cloud-primary shadow-lg scale-105'
+                        : 'bg-gray-50 text-cloud-text border-transparent hover:bg-gray-100 hover:shadow-md'}
                     `}
                   >
-                    <span className="text-xl md:text-2xl font-condensed font-bold mb-1">{c.symbol}</span>
-                    <span className={`text-[10px] font-bold tracking-wider ${currency === c.symbol ? 'opacity-100' : 'opacity-60'}`}>{c.code}</span>
+                    <span className="text-3xl font-bold mb-2">{c.symbol}</span>
+                    <span className={`text-xs font-bold tracking-wider ${currency === c.symbol ? 'opacity-100' : 'opacity-60'}`}>{c.code}</span>
                   </button>
                 ))}
               </div>
@@ -289,7 +287,7 @@ const AppContent: React.FC = () => {
       {/* Name Input Modal for Joining */}
       {isJoining && (
         <div
-          className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-[60] bg-cloud-primary/20 backdrop-blur-md flex items-center justify-center p-6 animate-fade-in"
           onClick={(e) => {
             // Close if clicking the backdrop
             if (e.target === e.currentTarget) {
@@ -297,30 +295,42 @@ const AppContent: React.FC = () => {
             }
           }}
         >
-          <div className="bg-nike-card w-full max-w-sm rounded-3xl p-8 border border-white/10 shadow-2xl">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-soft transform transition-all hover:scale-[1.01]">
             {currentUser && splitStatus === 'waiting' ? (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 bg-nike-volt/10 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-                  <span className="text-4xl">⏳</span>
+              <div className="text-center py-4">
+                <div className="w-32 h-32 bg-cloud-light rounded-full flex items-center justify-center mx-auto mb-8 animate-float shadow-inner-soft">
+                  <span className="text-6xl">⏳</span>
                 </div>
-                <h2 className="text-2xl font-extrabold italic uppercase tracking-tighter mb-2">Waiting for Host</h2>
-                <p className="text-nike-subtext mb-6">The host will start the session soon.</p>
-                <div className="flex justify-center space-x-2">
-                  <div className="w-2 h-2 bg-nike-volt rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-nike-volt rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-nike-volt rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                <h2 className="text-3xl font-bold text-cloud-text mb-3">Waiting for Host</h2>
+                <p className="text-xl text-cloud-subtext mb-8">The host will start the session soon.</p>
+                <div className="flex justify-center space-x-3 mb-8">
+                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-4 h-4 bg-cloud-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to leave this split?')) {
+                      leaveSplit();
+                      setIsJoining(false);
+                    }
+                  }}
+                  className="text-cloud-subtext hover:text-cloud-text font-bold transition-colors"
+                >
+                  Leave & Go Back
+                </button>
               </div>
             ) : (
               <>
-                <h2 className="text-2xl font-extrabold italic uppercase tracking-tighter mb-2">Join Split</h2>
-                <p className="text-nike-subtext mb-6">Enter your name to join the group.</p>
+                <h2 className="text-3xl font-bold text-cloud-text mb-3 text-center">Join Split</h2>
+                <p className="text-xl text-cloud-subtext mb-8 text-center">Enter your name to join the group.</p>
                 {contextError && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-red-500 text-sm font-bold">
+                  <div className="bg-red-50 border-2 border-red-100 rounded-3xl p-4 mb-6 flex items-center gap-3 text-red-500 text-base font-bold animate-pulse">
                     <span>⚠️</span> {contextError}
                   </div>
                 )}
-                <form onSubmit={handleNameSubmit} className="flex flex-col gap-4">
+                <form onSubmit={handleNameSubmit} className="flex flex-col gap-5">
                   <label htmlFor="join-name-input" className="sr-only">Your Name</label>
                   <input
                     id="join-name-input"
@@ -328,21 +338,21 @@ const AppContent: React.FC = () => {
                     value={joinName}
                     onChange={(e) => setJoinName(e.target.value)}
                     placeholder="Your Name"
-                    className="bg-nike-gray border border-white/10 rounded-xl p-4 text-white placeholder:text-white/30 focus:outline-none focus:border-nike-volt transition-colors"
+                    className="bg-gray-50 border-2 border-transparent focus:border-cloud-primary rounded-3xl p-6 text-cloud-text placeholder:text-gray-400 focus:outline-none transition-all text-2xl font-bold text-center shadow-inner"
                     autoFocus
                   />
-                  <div className="flex gap-3">
+                  <div className="flex gap-4 mt-4">
                     <button
                       type="button"
                       onClick={handleCloseJoinModal}
-                      className="flex-1 py-4 rounded-xl font-bold text-nike-subtext hover:text-white hover:bg-white/5 transition-colors"
+                      className="flex-1 py-5 rounded-3xl font-bold text-lg text-cloud-subtext hover:bg-gray-50 transition-colors hover:scale-105 active:scale-95"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={!joinName.trim() || isProcessing}
-                      className="flex-1 py-4 bg-nike-volt text-black rounded-xl font-bold uppercase tracking-wider hover:bg-nike-volt-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                      className="flex-1 py-5 bg-cloud-primary text-white rounded-3xl font-bold text-lg shadow-lg hover:bg-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center hover:scale-105 active:scale-95 hover:shadow-xl"
                     >
                       {isProcessing ? 'Joining...' : 'Join'}
                     </button>
@@ -354,63 +364,47 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <header className="p-4 md:p-6 flex justify-between items-center sticky top-0 bg-nike-black/90 backdrop-blur-md z-50 border-b border-white/10">
-        <div className="flex items-center gap-2 group cursor-pointer touch-manipulation" onClick={handleReset}>
-          <Activity className="text-nike-volt w-6 h-6 md:w-8 md:h-8 transform -skew-x-12" strokeWidth={3} />
-          <h1 className="text-xl md:text-2xl font-extrabold italic uppercase tracking-tighter leading-none">
-            Just<br /><span className="text-nike-volt">Split It</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-3 md:gap-6">
-          {/* Progress Indicators (Hidden on mobile) */}
-          <div className="hidden md:flex gap-2">
-            {[AppStep.UPLOAD, AppStep.USERS, AppStep.SPLIT, AppStep.SHARE].map((s, idx) => {
-              const stepsOrder = [AppStep.UPLOAD, AppStep.USERS, AppStep.SPLIT, AppStep.SHARE];
-              const currentIdx = stepsOrder.indexOf(step);
-              const stepIdx = stepsOrder.indexOf(s);
-              const isActive = currentIdx >= stepIdx;
-
-              return (
-                <div
-                  key={s}
-                  className={`h-1 w-8 rounded-full transition-all duration-500 ${isActive ? 'bg-nike-volt' : 'bg-nike-gray'}`}
-                />
-              )
-            })}
-          </div>
-
+      {/* Header - Settings Only */}
+      <header className="px-6 py-6 md:px-10 md:py-8 flex justify-end items-center sticky top-0 z-50 pointer-events-none">
+        <div className="pointer-events-auto">
           <button
             onClick={() => setIsCurrencyOpen(true)}
-            className="p-2 rounded-full bg-nike-gray text-nike-subtext active:text-white md:hover:text-white active:bg-white/10 md:hover:bg-white/10 transition-colors border border-transparent active:border-white/20 md:hover:border-white/20 touch-manipulation"
+            className="w-12 h-12 rounded-full bg-white text-black hover:bg-gray-50 shadow-sm hover:shadow-md transition-all flex items-center justify-center border border-gray-100"
           >
-            <Settings size={18} className="md:w-5 md:h-5" />
+            <Settings size={24} strokeWidth={2} />
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-3 md:p-4 lg:p-6 flex flex-col h-[calc(100vh-73px)] md:h-[calc(100vh-90px)]">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100vh-100px)] -mt-20">
         {step === AppStep.UPLOAD && (
-          <div className="flex flex-col items-center pt-4 justify-start flex-1 animate-fade-in w-full max-w-md mx-auto">
+          <div className="flex flex-col items-center pt-8 justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
+
+            {/* Logo - Centered */}
+            <div className="mb-12 text-center group cursor-pointer" onClick={handleReset}>
+              <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
+                <span className="absolute inset-0 text-stroke-8 text-white z-0" aria-hidden="true">splitto</span>
+                <span className="relative z-10">splitto</span>
+              </h1>
+            </div>
 
             {/* Tabs */}
-            <div className="flex w-full bg-nike-gray p-2 rounded-full mb-8 border border-white/10">
+            <div className="flex w-full bg-gray-100 p-1.5 rounded-full mb-8 shadow-inner-soft">
               <button
                 onClick={() => setActiveTab('host')}
-                className={`flex-1 py-4 rounded-full font-bold uppercase tracking-wider transition-all duration-300 ${activeTab === 'host'
-                  ? 'bg-nike-volt text-black shadow-lg'
-                  : 'text-nike-subtext hover:text-white'
+                className={`flex-1 py-4 rounded-full font-bold text-lg transition-all duration-300 transform ${activeTab === 'host'
+                  ? 'bg-white text-black shadow-sm scale-100'
+                  : 'text-gray-400 hover:text-gray-600 scale-95 hover:scale-100'
                   }`}
               >
                 Host
               </button>
               <button
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-4 rounded-full font-bold uppercase tracking-wider transition-all duration-300 ${activeTab === 'join'
-                  ? 'bg-nike-volt text-black shadow-lg'
-                  : 'text-nike-subtext hover:text-white'
+                className={`flex-1 py-4 rounded-full font-bold text-lg transition-all duration-300 transform ${activeTab === 'join'
+                  ? 'bg-white text-black shadow-sm scale-100'
+                  : 'text-gray-400 hover:text-gray-600 scale-95 hover:scale-100'
                   }`}
               >
                 Join
@@ -421,61 +415,54 @@ const AppContent: React.FC = () => {
               {activeTab === 'host' ? (
                 <div className="animate-fade-in flex-1 flex flex-col">
                   <UploadZone onFileSelect={handleFileSelect} isProcessing={isProcessing} />
-                  <p className="text-center text-nike-subtext text-sm mt-6">
-                    Upload a receipt to start splitting
-                  </p>
                 </div>
               ) : (
-                <div className="animate-fade-in flex-1 flex flex-col justify-center">
-                  <div className="bg-nike-card border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl">
-                    <h2 className="text-2xl font-extrabold italic uppercase tracking-tighter mb-2 text-center">Enter PIN</h2>
-                    <p className="text-nike-subtext mb-8 text-center">Ask the host for the 4-digit code</p>
+                <div className="animate-fade-in flex-1 flex flex-col">
+                  <div className="bg-pastel-green rounded-[3rem] p-10 shadow-sm border border-black/5 relative overflow-hidden transform hover:scale-[1.02] transition-transform duration-500">
+                    <div className="relative z-10">
+                      <h2 className="text-3xl font-black text-black mb-3 text-center tracking-tight">Enter PIN</h2>
+                      <p className="text-xl text-gray-600 mb-10 text-center font-medium">Ask the host for the 4-digit code</p>
 
-                    {error && (
-                      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-center gap-2 text-red-500 text-sm font-bold">
-                        <span>⚠️</span> {error}
-                      </div>
-                    )}
+                      {error && (
+                        <div className="bg-white/50 border-2 border-red-100 rounded-3xl p-4 mb-6 flex items-center gap-3 text-red-500 text-lg font-bold animate-shake">
+                          <span>⚠️</span> {error}
+                        </div>
+                      )}
 
-                    <form onSubmit={handleJoinSubmit} className="flex flex-col gap-4">
-                      <label htmlFor="join-pin-input" className="sr-only">Enter PIN</label>
-                      <input
-                        id="join-pin-input"
-                        type="text"
-                        pattern="[0-9]*"
-                        maxLength={4}
-                        placeholder="XXXX"
-                        value={joinPin}
-                        onChange={(e) => {
-                          setJoinPin(e.target.value.replace(/[^0-9]/g, ''));
-                          setError(null); // Clear error when user types
-                        }}
-                        className="w-full bg-nike-gray border border-white/10 rounded-2xl px-4 py-6 text-center text-4xl tracking-[0.5em] font-mono focus:outline-none focus:border-nike-volt transition-colors placeholder:text-white/10 placeholder:tracking-[0.2em]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={joinPin.length !== 4 || isProcessing}
-                        className="w-full py-5 bg-white text-black rounded-2xl font-bold uppercase tracking-wider text-lg hover:bg-nike-volt transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2 shadow-lg active:scale-[0.98] transform"
-                      >
-                        {isProcessing ? 'Checking...' : 'Join Split'}
-                      </button>
-                    </form>
+                      <form onSubmit={handleJoinSubmit} className="flex flex-col gap-6">
+                        <label htmlFor="join-pin-input" className="sr-only">Enter PIN</label>
+                        <input
+                          id="join-pin-input"
+                          type="text"
+                          pattern="[0-9]*"
+                          maxLength={4}
+                          placeholder="0000"
+                          value={joinPin}
+                          onChange={(e) => {
+                            setJoinPin(e.target.value.replace(/[^0-9]/g, ''));
+                            setError(null); // Clear error when user types
+                          }}
+                          className="w-full bg-white/60 border-2 border-transparent focus:border-black/10 rounded-[2rem] px-6 py-8 text-center text-7xl tracking-[0.2em] font-black text-black focus:outline-none transition-all placeholder:text-black/10 shadow-inner-soft"
+                        />
+                        <button
+                          type="submit"
+                          disabled={joinPin.length !== 4 || isProcessing}
+                          className="w-full py-6 bg-black text-white rounded-[2rem] font-bold text-2xl shadow-lg hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 active:scale-[0.98] transform hover:shadow-xl hover:-translate-y-1"
+                        >
+                          {isProcessing ? 'Checking...' : 'Join Split'}
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-
-            {!isProcessing && (
-              <div className="mt-auto pt-8 text-center opacity-30 pb-4">
-                <p className="text-[10px] font-mono uppercase tracking-widest">Powered by Gemini 2.5 Flash</p>
-              </div>
-            )}
           </div>
         )}
 
         {step === AppStep.USERS && (
           <div className="flex justify-center flex-1 items-center animate-fade-in">
-            <div className="w-full max-w-lg bg-nike-card rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xl border border-white/5">
+            <div className="w-full max-w-lg bg-white rounded-[3rem] p-8 md:p-10 shadow-soft border border-white/50">
               <UserSetup
                 users={users}
                 setUsers={setUsers}
@@ -487,6 +474,7 @@ const AppContent: React.FC = () => {
                   })));
                   setStep(AppStep.SPLIT);
                 }}
+                onClose={handleReset}
               />
             </div>
           </div>
@@ -504,6 +492,7 @@ const AppContent: React.FC = () => {
                 onReset={handleReset}
                 onShare={() => setStep(AppStep.SHARE)}
                 currency={currency}
+                onClose={handleReset}
               />
             )}
           </div>
@@ -516,6 +505,7 @@ const AppContent: React.FC = () => {
               users={users}
               currency={currency}
               onBack={() => setStep(AppStep.SPLIT)}
+              onHome={handleReset}
             />
           </div>
         )}

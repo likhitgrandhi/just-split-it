@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'; 
 import { ReceiptItem, User, AppStep } from '../types';
 import { createSplit as apiCreateSplit, getSplitByPin, updateSplitData, subscribeToSplit } from '../services/supabase';
 
@@ -14,7 +14,7 @@ interface SplitContextType {
     splitStatus: 'waiting' | 'active' | 'locked' | 'ended';
     currentUser: User | null;
     setCurrentUser: (user: User | null) => void;
-    createSplit: () => Promise<string>;
+    createSplit: (overrideUsers?: User[], overrideItems?: ReceiptItem[]) => Promise<string>;
     startRoom: () => Promise<void>;
     joinSplit: (pin: string, userName: string) => Promise<void>;
     updateItemAssignment: (itemId: string, userId: string, action: 'add' | 'remove') => void;
@@ -26,6 +26,9 @@ interface SplitContextType {
     toggleLock: () => Promise<void>;
     endSplit: () => Promise<void>;
     startManualSplit: () => void;
+    leaveSplit: () => Promise<void>;
+    isLiveMode: boolean;
+    forceEndSplit: () => Promise<void>;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -36,15 +39,36 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
     const [pin, setPin] = useState<string | null>(null);
     const [isHost, setIsHost] = useState(false);
-    const [splitStatus, setSplitStatus] = useState<'waiting' | 'active'>('waiting');
+    const [splitStatus, setSplitStatus] = useState<'waiting' | 'active' | 'locked' | 'ended'>('waiting');
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Ref to track if we're currently updating to prevent subscription loops
+    const isUpdatingRef = useRef(false);
+    const subscriptionRef = useRef<any>(null);
+    
     // Subscribe to changes when PIN is set
     useEffect(() => {
-        if (!pin) return;
+        if (!pin) {
+            // Clean up any existing subscription
+            if (subscriptionRef.current) {
+                subscriptionRef.current.unsubscribe();
+                subscriptionRef.current = null;
+            }
+            return;
+        }
 
-        const subscription = subscribeToSplit(pin, (newData) => {
+        // Clean up previous subscription before creating new one
+        if (subscriptionRef.current) {
+            subscriptionRef.current.unsubscribe();
+        }
+
+        subscriptionRef.current = subscribeToSplit(pin, (newData) => {
+            // Skip updates if we're currently updating (prevents loops)
+            if (isUpdatingRef.current) {
+                return;
+            }
+            
             if (newData && newData.data) {
                 // Always update items (simple replacement is fine for items)
                 setItems(newData.data.items || []);
@@ -52,6 +76,11 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Update status if it changed
                 if (newData.data.status) {
                     setSplitStatus(newData.data.status);
+                    
+                    // If split ended, clean up local storage
+                    if (newData.data.status === 'ended') {
+                        localStorage.removeItem(STORAGE_KEY);
+                    }
                 }
 
                 // For users, we need to merge intelligently to avoid race conditions
@@ -60,7 +89,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     const serverUsers = newData.data.users || [];
 
                     // Create a map of server users by ID for quick lookup
-                    const serverUserMap = new Map(serverUsers.map(u => [u.id, u]));
+                    const serverUserMap = new Map(serverUsers.map((u: User) => [u.id, u]));
 
                     // Start with all server users
                     const mergedUsers = [...serverUsers];
@@ -79,7 +108,10 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
 
         return () => {
-            subscription.unsubscribe();
+            if (subscriptionRef.current) {
+                subscriptionRef.current.unsubscribe();
+                subscriptionRef.current = null;
+            }
         };
     }, [pin]);
 
@@ -116,7 +148,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const savedSession = localStorage.getItem(STORAGE_KEY);
             if (savedSession && !pin) {
                 try {
-                    const { pin: savedPin, userId, userName } = JSON.parse(savedSession);
+                    const { pin: savedPin, userId, userName, isHost: savedIsHost, userColor } = JSON.parse(savedSession);
 
                     // If URL PIN exists and is different from Saved PIN, URL wins (User clicked a new link)
                     if (urlJoinPin && urlJoinPin !== savedPin) {
@@ -127,24 +159,49 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     }
 
                     if (savedPin && userId && userName) {
-                        console.log('🔄 PERSISTENCE: Found saved session', { savedPin, userName });
+                        console.log('🔄 PERSISTENCE: Found saved session', { savedPin, userName, savedIsHost });
 
                         // Restore basic state immediately
                         setPin(savedPin);
-                        setCurrentUser({ id: userId, name: userName, color: '#CBF300' });
+                        setCurrentUser({ id: userId, name: userName, color: userColor || '#CBF300' });
                         setStep(AppStep.SPLIT);
+                        
+                        // Restore host status
+                        if (savedIsHost) {
+                            setIsHost(true);
+                        }
 
                         // Re-fetch full data
                         try {
                             const response = await getSplitByPin(savedPin);
                             if (response && response.data) {
                                 const data = response.data;
+                                
+                                // Check if split has ended
+                                if (data.status === 'ended') {
+                                    console.log('🔄 PERSISTENCE: Split has ended');
+                                    localStorage.removeItem(STORAGE_KEY);
+                                    setSplitStatus('ended');
+                                    setIsRestoring(false);
+                                    return;
+                                }
+                                
                                 setItems(data.items || []);
                                 setUsers(data.users || []);
                                 if (data.status) setSplitStatus(data.status);
 
                                 const me = data.users?.find((u: User) => u.id === userId);
-                                if (me) setCurrentUser(me);
+                                if (me) {
+                                    setCurrentUser(me);
+                                    // Update localStorage with correct color
+                                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                                        pin: savedPin,
+                                        userId: me.id,
+                                        userName: me.name,
+                                        userColor: me.color,
+                                        isHost: savedIsHost
+                                    }));
+                                }
                             } else {
                                 console.warn('🔄 PERSISTENCE: Split not found, clearing session');
                                 localStorage.removeItem(STORAGE_KEY);
@@ -152,6 +209,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                             }
                         } catch (err) {
                             console.error('🔄 PERSISTENCE: Failed to restore', err);
+                            // Split might be deleted, clean up
+                            localStorage.removeItem(STORAGE_KEY);
+                            reset();
                         }
                     }
                 } catch (e) {
@@ -166,36 +226,76 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         init();
     }, []);
 
-    const createSplit = async () => {
-        const newPin = Math.floor(1000 + Math.random() * 9000).toString();
+    const createSplit = async (overrideUsers?: User[], overrideItems?: ReceiptItem[]) => {
         const hostId = crypto.randomUUID();
+        
+        // Use override values if provided (handles async state update race condition)
+        const usersToSave = overrideUsers || users;
+        const itemsToSave = overrideItems || items;
+        
+        // Generate unique PIN with collision check
+        let newPin: string;
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (attempts < maxAttempts) {
+            newPin = Math.floor(1000 + Math.random() * 9000).toString();
+            try {
+                // Check if PIN already exists
+                const existing = await getSplitByPin(newPin);
+                if (!existing) {
+                    break; // PIN is available
+                }
+                attempts++;
+            } catch {
+                // PIN doesn't exist (error thrown), we can use it
+                break;
+            }
+        }
+        
+        if (attempts >= maxAttempts) {
+            throw new Error('Unable to generate unique PIN. Please try again.');
+        }
 
         try {
-            await apiCreateSplit(newPin, {
-                items,
-                users,
+            await apiCreateSplit(newPin!, {
+                items: itemsToSave,
+                users: usersToSave,
                 hostId,
                 status: 'waiting'
             });
-            setPin(newPin);
+            setPin(newPin!);
             setIsHost(true);
             setSplitStatus('waiting');
+            
+            // Also update local state with the users we saved
+            if (overrideUsers) {
+                setUsers(overrideUsers);
+            }
+            if (overrideItems) {
+                setItems(overrideItems);
+            }
 
             // Update URL without reloading
             const url = new URL(window.location.href);
-            url.searchParams.set('join', newPin);
+            url.searchParams.set('join', newPin!);
             window.history.pushState({}, '', url);
 
-            if (currentUser) {
+            // Save session - use the host user from the users array we saved
+            const hostUser = usersToSave[0] || currentUser;
+            if (hostUser) {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    pin: newPin,
-                    userId: currentUser.id,
-                    userName: currentUser.name,
+                    pin: newPin!,
+                    userId: hostUser.id,
+                    userName: hostUser.name,
+                    userColor: hostUser.color,
                     isHost: true
                 }));
+                // Ensure currentUser is set
+                setCurrentUser(hostUser);
             }
 
-            return newPin;
+            return newPin!;
         } catch (err: any) {
             console.error(err);
             setError(err.message);
@@ -260,40 +360,82 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
             const latestSplit = await getSplitByPin(joinPin);
             const latestUsers = latestSplit?.data?.users || [];
+            const latestItems = latestSplit?.data?.items || [];
 
-            let currentUser: User;
+            let joinUser: User;
             let updatedUsers: User[];
+            let updatedItems = latestItems;
 
             // If rejoining with existing userId, find and reuse that user
             if (existingUserId) {
                 const existingUser = latestUsers.find((u: User) => u.id === existingUserId);
                 if (existingUser) {
                     console.log('🔄 REJOIN: Reusing existing user', existingUser);
-                    currentUser = existingUser;
+                    joinUser = existingUser;
                     updatedUsers = latestUsers; // No change to users list
-                    setCurrentUser(currentUser);
-                    setItems(data.items || []);
+                    setCurrentUser(joinUser);
+                    setItems(latestItems);
                     setUsers(updatedUsers);
                     setPin(joinPin);
                     setStep(AppStep.SPLIT);
-                    // Don't update Supabase, just restore local state
+                    
+                    // Update localStorage with current data
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        pin: joinPin,
+                        userId: joinUser.id,
+                        userName: joinUser.name,
+                        userColor: joinUser.color,
+                        isHost: false
+                    }));
                     return;
                 }
             }
 
-            // Create new user (first time joining or session lost)
+            // Check if a user with the same name already exists (duplicate prevention)
+            const existingUserByName = latestUsers.find((u: User) => 
+                u.name.toLowerCase().trim() === userName.toLowerCase().trim()
+            );
+            
+            if (existingUserByName) {
+                // User with same name exists - either it's a rejoin with lost session
+                // or someone trying to join with duplicate name
+                console.log('🔄 REJOIN: Found user with same name, reusing', existingUserByName);
+                joinUser = existingUserByName;
+                updatedUsers = latestUsers;
+                
+                // Don't create new user, just restore state
+                setCurrentUser(joinUser);
+                setItems(latestItems);
+                setUsers(updatedUsers);
+                setPin(joinPin);
+                setStep(AppStep.SPLIT);
+                
+                // Save session with existing user data
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    pin: joinPin,
+                    userId: joinUser.id,
+                    userName: joinUser.name,
+                    userColor: joinUser.color,
+                    isHost: false
+                }));
+                return;
+            }
+
+            // Create new user (first time joining)
+            // Generate a proper hex color
+            const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
             const newUser: User = {
                 id: crypto.randomUUID(),
                 name: userName,
-                color: '#' + Math.floor(Math.random() * 16777215).toString(16)
+                color: randomColor
             };
-            currentUser = newUser;
+            joinUser = newUser;
             setCurrentUser(newUser);
 
             updatedUsers = [...latestUsers, newUser];
 
             // Default Assignment: Assign new user to ALL items
-            const updatedItems = data.items.map((item: ReceiptItem) => ({
+            updatedItems = latestItems.map((item: ReceiptItem) => ({
                 ...item,
                 assignedTo: [...(item.assignedTo || []), newUser.id]
             }));
@@ -316,6 +458,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 pin: joinPin,
                 userId: newUser.id,
                 userName: newUser.name,
+                userColor: newUser.color,
                 isHost: false
             }));
 
@@ -345,6 +488,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setItems(newItems);
 
         if (pin) {
+            isUpdatingRef.current = true;
             try {
                 await updateSplitData(pin, {
                     items: newItems,
@@ -354,12 +498,18 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 });
             } catch (err) {
                 console.error("Failed to sync", err);
+            } finally {
+                // Small delay before allowing subscription updates again
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
             }
         }
     };
 
     const toggleLock = async () => {
         if (!pin) return;
+        isUpdatingRef.current = true;
         try {
             const newStatus = splitStatus === 'locked' ? 'active' : 'locked';
             await updateSplitData(pin, {
@@ -372,11 +522,16 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (err: any) {
             console.error(err);
             setError(err.message);
+        } finally {
+            setTimeout(() => {
+                isUpdatingRef.current = false;
+            }, 100);
         }
     };
 
     const endSplit = async () => {
         if (!pin) return;
+        isUpdatingRef.current = true;
         try {
             await updateSplitData(pin, {
                 items,
@@ -386,9 +541,42 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
             setSplitStatus('ended');
             localStorage.removeItem(STORAGE_KEY);
+            
+            // Clean up URL params
+            const url = new URL(window.location.href);
+            url.searchParams.delete('join');
+            window.history.replaceState({}, '', url.toString());
         } catch (err: any) {
             console.error(err);
             setError(err.message);
+        } finally {
+            isUpdatingRef.current = false;
+        }
+    };
+    
+    // Force end split - can be used by non-hosts when host abandons session
+    const forceEndSplit = async () => {
+        if (!pin) return;
+        isUpdatingRef.current = true;
+        try {
+            await updateSplitData(pin, {
+                items,
+                users,
+                hostId: '',
+                status: 'ended'
+            });
+            setSplitStatus('ended');
+            localStorage.removeItem(STORAGE_KEY);
+            
+            // Clean up URL params
+            const url = new URL(window.location.href);
+            url.searchParams.delete('join');
+            window.history.replaceState({}, '', url.toString());
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message);
+        } finally {
+            isUpdatingRef.current = false;
         }
     };
 
@@ -402,7 +590,51 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentUser(null);
         setError(null);
         localStorage.removeItem(STORAGE_KEY);
+        
+        // Clean up URL params
+        const url = new URL(window.location.href);
+        url.searchParams.delete('join');
+        window.history.replaceState({}, '', url.toString());
     };
+    
+    const leaveSplit = async () => {
+        if (!pin || !currentUser) {
+            reset();
+            return;
+        }
+        
+        isUpdatingRef.current = true;
+        try {
+            // Remove current user from the split
+            const latestSplit = await getSplitByPin(pin);
+            if (latestSplit && latestSplit.data) {
+                const updatedUsers = latestSplit.data.users.filter((u: User) => u.id !== currentUser.id);
+                
+                // Remove user assignments from items
+                const updatedItems = latestSplit.data.items.map((item: ReceiptItem) => ({
+                    ...item,
+                    assignedTo: item.assignedTo.filter((id: string) => id !== currentUser.id)
+                }));
+                
+                await updateSplitData(pin, {
+                    items: updatedItems,
+                    users: updatedUsers,
+                    hostId: latestSplit.data.hostId,
+                    status: latestSplit.data.status
+                });
+            }
+        } catch (err) {
+            console.error('Failed to leave split cleanly', err);
+        } finally {
+            isUpdatingRef.current = false;
+        }
+        
+        // Reset local state regardless of server update success
+        reset();
+    };
+    
+    // Determine if we're in live mode (has PIN) vs manual mode
+    const isLiveMode = pin !== null;
 
     const startManualSplit = () => {
         setSplitStatus('active');
@@ -430,7 +662,10 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             toggleLock,
             endSplit,
             startManualSplit,
-            clearPendingJoinPin
+            clearPendingJoinPin,
+            leaveSplit,
+            isLiveMode,
+            forceEndSplit
         }}>
             {children}
         </SplitContext.Provider>
