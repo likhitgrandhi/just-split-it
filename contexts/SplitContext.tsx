@@ -26,6 +26,8 @@ interface SplitContextType {
     toggleLock: () => Promise<void>;
     endSplit: () => Promise<void>;
     startManualSplit: () => void;
+    addUser: (name: string, color: string) => void;
+    addItems: (newItems: ReceiptItem[]) => void;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -405,12 +407,41 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const startManualSplit = () => {
+        // Auto-assign all users to all items
+        const updatedItems = items.map(item => ({
+            ...item,
+            assignedTo: users.map(user => user.id)
+        }));
+        setItems(updatedItems);
         setSplitStatus('active');
         setIsHost(true); // Treat manual user as host so they don't see waiting room
     };
 
     const clearPendingJoinPin = () => {
         setPendingJoinPin(null);
+    };
+
+    const addUser = (name: string, color: string) => {
+        const newUser: User = {
+            id: crypto.randomUUID(),
+            name,
+            color
+        };
+        setUsers(prev => [...prev, newUser]);
+        // Auto-assign new user to all existing items
+        setItems(prev => prev.map(item => ({
+            ...item,
+            assignedTo: [...item.assignedTo, newUser.id]
+        })));
+    };
+
+    const addItems = (newItems: ReceiptItem[]) => {
+        // Auto-assign all existing users to new items
+        const itemsWithUsers = newItems.map(item => ({
+            ...item,
+            assignedTo: users.map(u => u.id)
+        }));
+        setItems(prev => [...prev, ...itemsWithUsers]);
     };
 
     return (
@@ -430,7 +461,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             toggleLock,
             endSplit,
             startManualSplit,
-            clearPendingJoinPin
+            clearPendingJoinPin,
+            addUser,
+            addItems
         }}>
             {children}
         </SplitContext.Provider>

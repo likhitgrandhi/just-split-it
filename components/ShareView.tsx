@@ -14,30 +14,15 @@ interface ShareViewProps {
 }
 
 export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
-  const { items, users, pin, createSplit } = useSplit();
+  const { items, users, pin } = useSplit();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const [copyingId, setCopyingId] = useState<string | null>(null);
-  const [isCreatingPin, setIsCreatingPin] = useState(false);
   const { toasts, hideToast, success, error: showError } = useToast();
 
-  // Auto-generate PIN if not exists
-  useEffect(() => {
-    if (!pin && !isCreatingPin) {
-      const initSplit = async () => {
-        setIsCreatingPin(true);
-        try {
-          await createSplit();
-        } catch (err) {
-          console.error("Failed to create split", err);
-        } finally {
-          setIsCreatingPin(false);
-        }
-      };
-      initSplit();
-    }
-  }, [pin, createSplit, isCreatingPin]);
+  // Don't auto-create PIN in ShareView - PIN should only be created during Live Split setup
+  // Manual splits don't need a PIN at all
 
   // Calculate data per user
   const userSplits = useMemo(() => {
@@ -205,26 +190,25 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
     <div className="flex flex-col h-full animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-4 md:mb-6 px-2">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 md:gap-2 text-nike-subtext active:text-white md:hover:text-white transition-colors group touch-manipulation"
-        >
-          <ArrowLeft size={18} className="md:group-hover:-translate-x-1 transition-transform" />
-          <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Back</span>
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 md:gap-2 text-nike-subtext active:text-white md:hover:text-white transition-colors group touch-manipulation"
+          >
+            <ArrowLeft size={18} className="md:group-hover:-translate-x-1 transition-transform" />
+            <span className="font-bold uppercase tracking-wider text-xs md:text-sm">Back</span>
+          </button>
 
-        <div className="flex flex-col items-end">
-          <h2 className="text-base md:text-xl font-extrabold italic uppercase tracking-tighter text-nike-volt">
+          <h2 className="text-2xl md:text-3xl font-extrabold italic uppercase tracking-tighter text-nike-volt">
             Share Results
           </h2>
-          {pin ? (
-            <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-white/70 hover:text-white transition-colors">
-              PIN: <span className="font-bold text-white">{pin}</span> <Copy size={10} />
-            </button>
-          ) : (
-            <span className="text-xs text-white/50 animate-pulse">Generating PIN...</span>
-          )}
         </div>
+
+        {pin && (
+          <button onClick={handleSharePin} className="flex items-center gap-1 text-xs font-mono text-white/70 hover:text-white transition-colors">
+            PIN: <span className="font-bold text-white">{pin}</span> <Copy size={10} />
+          </button>
+        )}
       </div>
 
       {/* Carousel Container */}
@@ -337,14 +321,16 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack }) => {
       </div>
 
       {/* Toast Notifications */}
-      {toasts.map(toast => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => hideToast(toast.id)}
-        />
-      ))}
-    </div>
+      {
+        toasts.map(toast => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            onClose={() => hideToast(toast.id)}
+          />
+        ))
+      }
+    </div >
   );
 };

@@ -1,6 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Share2, Lock, Check, Plus, ArrowRight } from 'lucide-react';
+import { Share2, Lock, Check, Plus, ArrowRight, Link, Upload, UserPlus } from 'lucide-react';
 import { useSplit } from '../contexts/SplitContext';
+import { useToast } from '../hooks/useToast';
+import { Toast } from './Toast';
+import { AddUserModal } from './AddUserModal';
+import { AddReceiptModal } from './AddReceiptModal';
+import { parseReceiptImage, fileToGenerativePart } from '../services/geminiService';
 
 interface SplitterProps {
   onReset: () => void;
@@ -24,8 +29,119 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency }
     startRoom,
     isHost,
     toggleLock,
-    endSplit
+    endSplit,
+    addUser,
+    addItems
   } = useSplit();
+
+  const { toasts, hideToast, success, error: showError } = useToast();
+
+  // State for modals
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddReceiptModal, setShowAddReceiptModal] = useState(false);
+
+  const handleShareLink = async () => {
+    if (!pin) return;
+
+    const shareUrl = `${window.location.origin}${window.location.pathname}?join=${pin}`;
+    const shareText = `Join my split! PIN: ${pin}\n\nClick here: ${shareUrl}`;
+
+    try {
+      // Try Web Share API first (works on mobile)
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Join Split',
+          text: shareText,
+        });
+        return;
+      }
+    } catch (err) {
+      console.log("Web Share failed, trying clipboard...", err);
+    }
+
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      success("Link copied! Share it with your friends.");
+    } catch (err) {
+      showError("Could not copy link. Please try again.");
+    }
+  };
+
+  const handleAddReceipt = () => {
+    setShowAddReceiptModal(true);
+  };
+
+  const handleAddUser = () => {
+    setShowAddUserModal(true);
+  };
+
+  const AVATAR_COLORS = [
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B',
+    '#8B5CF6', '#EC4899', '#6366F1', '#F97316',
+    '#14B8A6', '#CBF300',
+  ];
+
+  const handleAddUserSubmit = (name: string) => {
+    // Check for duplicate user name
+    const isDuplicate = users.some(u => u.name.toLowerCase() === name.toLowerCase());
+    if (isDuplicate) {
+      showError(`User "${name}" already exists!`);
+      return;
+    }
+
+    const color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+    addUser(name, color);
+    success(`${name} added to the split!`);
+  };
+
+  const [isProcessingReceipts, setIsProcessingReceipts] = useState(false);
+
+  const handleReceiptUpload = async (files: File[]) => {
+    setIsProcessingReceipts(true);
+    try {
+      const newItems: any[] = [];
+      let processedCount = 0;
+
+      for (const file of files) {
+        // Check for duplicate receipt
+        const isDuplicate = items.some(item => item.billName === file.name);
+        if (isDuplicate) {
+          showError(`Receipt "${file.name}" already exists!`);
+          continue;
+        }
+
+        processedCount++;
+        try {
+          const imagePart = await fileToGenerativePart(file);
+          const extractedItems = await parseReceiptImage(imagePart, file.type);
+
+          if (extractedItems && extractedItems.length > 0) {
+            const itemsWithBillName = extractedItems.map((item: any) => ({
+              ...item,
+              billName: file.name
+            }));
+            newItems.push(...itemsWithBillName);
+          }
+        } catch (err) {
+          console.error(`Failed to process ${file.name}:`, err);
+          showError(`Failed to process ${file.name}`);
+        }
+      }
+
+      if (newItems.length > 0) {
+        addItems(newItems);
+        success(`Added ${newItems.length} items from ${files.length} receipt(s)!`);
+      } else if (processedCount > 0) {
+        showError('No items found in the uploaded receipts');
+      }
+    } catch (err) {
+      console.error('Failed to process receipts:', err);
+      showError('Failed to process receipts');
+    } finally {
+      setIsProcessingReceipts(false);
+    }
+  };
 
   const toggleAssignment = (itemId: string, userId: string) => {
     // If we are in a split (pin exists) and we are not the user being toggled, prevent it
@@ -115,6 +231,26 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency }
               </div>
             )}
 
+            {pin && (
+              <button
+                onClick={handleShareLink}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-wider text-xs bg-nike-volt text-black hover:bg-nike-volt/80 transition-colors"
+                title="Copy invite link"
+              >
+                <Link size={14} />
+                <span className="hidden md:inline">Share Link</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleAddReceipt}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold uppercase tracking-wider text-xs bg-nike-volt text-black hover:bg-nike-volt/80 transition-colors"
+              title="Add more receipts"
+            >
+              <Upload size={14} />
+              <span className="hidden md:inline">Add Receipt</span>
+            </button>
+
             <button
               onClick={onShare}
               className="p-2 rounded-full bg-nike-gray text-white hover:bg-white/10 transition-colors"
@@ -123,60 +259,84 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency }
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto no-scrollbar p-3 md:p-4 space-y-3">
-          {items.map(item => {
-            const isUnassigned = item.assignedTo.length === 0;
-
-            return (
-              <div key={item.id} className="bg-black/40 rounded-xl p-3 md:p-4 transition-colors active:bg-black/70 md:hover:bg-black/60 group">
-                <div className="flex justify-between items-start mb-3 gap-2">
-                  <h3 className="font-bold text-white text-base md:text-lg group-hover:text-nike-volt transition-colors flex-1 break-words">{item.name}</h3>
-                  <div className="font-mono font-bold text-nike-volt text-sm md:text-base whitespace-nowrap">
-                    {currency}{item.price.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* User Chips */}
-                <div className="flex flex-wrap gap-2">
-                  {users.map(user => {
-                    const isSelected = item.assignedTo.includes(user.id);
-                    // Lock if in a split (pin set) AND user is not me
-                    const isLocked = pin && currentUser && user.id !== currentUser.id;
-
-                    return (
-                      <button
-                        key={user.id}
-                        onClick={() => toggleAssignment(item.id, user.id)}
-                        disabled={!!isLocked}
-                        className={`
-                          px-3 py-2 md:py-1.5 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 transition-all touch-manipulation
-                          ${isSelected
-                            ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.3)] scale-105'
-                            : 'bg-nike-gray text-nike-subtext border border-white/10'}
-                          ${isLocked ? 'opacity-50 cursor-not-allowed' : 'active:border-white/50 md:hover:border-white/50'}
-                        `}
-                      >
-                        <div
-                          className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-black"
-                          style={{ backgroundColor: user.color }}
-                        >
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        {user.name}
-                        {isSelected && <Check size={12} className="text-black" />}
-                        {isLocked && <Lock size={10} className="ml-1 opacity-50" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                {isUnassigned && (
-                  <div className="mt-2 text-[10px] text-red-500 font-bold uppercase tracking-widest text-right">
-                    Unassigned
-                  </div>
-                )}
+        <div className="flex-1 overflow-y-auto no-scrollbar p-3 md:p-4 space-y-6">
+          {(() => {
+            console.log('🎨 SPLITTER: Rendering items', items.map(i => ({ name: i.name, billName: i.billName })));
+            const grouped = items.reduce((acc: any, item: any) => {
+              const billName = item.billName || 'General';
+              if (!acc[billName]) acc[billName] = [];
+              acc[billName].push(item);
+              return acc;
+            }, {});
+            console.log('📊 SPLITTER: Grouped items', Object.keys(grouped).map(k => ({ billName: k, count: grouped[k].length })));
+            return Object.entries(grouped);
+          })().map(([billName, billItems]: [string, any[]]) => (
+            <div key={billName} className="space-y-3">
+              {/* Bill Header */}
+              <div className="flex items-center gap-4 px-1 py-2">
+                <div className="h-px bg-white/20 flex-1"></div>
+                <h3 className="text-nike-volt text-xs md:text-sm font-bold uppercase tracking-widest whitespace-nowrap">
+                  {billName}
+                </h3>
+                <div className="h-px bg-white/20 flex-1"></div>
               </div>
-            );
-          })}
+
+              {/* Items for this bill */}
+              {billItems.map(item => {
+                const isUnassigned = item.assignedTo.length === 0;
+
+                return (
+                  <div key={item.id} className="bg-black/40 rounded-xl p-3 md:p-4 transition-colors active:bg-black/70 md:hover:bg-black/60 group">
+                    <div className="flex justify-between items-start mb-3 gap-2">
+                      <h3 className="font-bold text-white text-base md:text-lg group-hover:text-nike-volt transition-colors flex-1 break-words">{item.name}</h3>
+                      <div className="font-mono font-bold text-nike-volt text-sm md:text-base whitespace-nowrap">
+                        {currency}{item.price.toFixed(2)}
+                      </div>
+                    </div>
+
+                    {/* User Chips */}
+                    <div className="flex flex-wrap gap-2">
+                      {users.map((user: any) => {
+                        const isSelected = item.assignedTo.includes(user.id);
+                        // Lock if in a split (pin set) AND user is not me
+                        const isLocked = pin && currentUser && user.id !== currentUser.id;
+
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => toggleAssignment(item.id, user.id)}
+                            disabled={!!isLocked}
+                            className={`
+                              px-3 py-2 md:py-1.5 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 transition-all touch-manipulation
+                              ${isSelected
+                                ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.3)] scale-105'
+                                : 'bg-nike-gray text-nike-subtext border border-white/10'}
+                              ${isLocked ? 'opacity-50 cursor-not-allowed' : 'active:border-white/50 md:hover:border-white/50'}
+                            `}
+                          >
+                            <div
+                              className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-black"
+                              style={{ backgroundColor: user.color }}
+                            >
+                              {user.name.charAt(0).toUpperCase()}
+                            </div>
+                            {user.name}
+                            {isSelected && <Check size={12} className="text-black" />}
+                            {isLocked && <Lock size={10} className="ml-1 opacity-50" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {isUnassigned && (
+                      <div className="mt-2 text-[10px] text-red-500 font-bold uppercase tracking-widest text-right">
+                        Unassigned
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
 
         {/* Mobile Total Summary - Accordion Style */}
@@ -263,6 +423,13 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency }
                 +{users.length - 3}
               </div>
             )}
+            <button
+              onClick={handleAddUser}
+              className="w-8 h-8 rounded-full bg-nike-volt flex items-center justify-center text-black hover:bg-nike-volt/80 transition-colors border-2 border-nike-card"
+              title="Add user"
+            >
+              <UserPlus size={16} />
+            </button>
           </div>
         </div>
 
@@ -332,6 +499,32 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency }
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      {toasts.map(toast => (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={() => hideToast(toast.id)}
+        />
+      ))}
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <AddUserModal
+          onClose={() => setShowAddUserModal(false)}
+          onAdd={handleAddUserSubmit}
+        />
+      )}
+
+      {/* Add Receipt Modal */}
+      {showAddReceiptModal && (
+        <AddReceiptModal
+          onClose={() => setShowAddReceiptModal(false)}
+          onUpload={handleReceiptUpload}
+        />
+      )}
     </div>
   );
 };

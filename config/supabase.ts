@@ -4,7 +4,11 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Missing Supabase environment variables');
+  console.warn('Missing Supabase environment variables - real-time collaboration features will be disabled');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+// Use placeholder values if not configured to prevent app crash
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co', 
+  supabaseAnonKey || 'placeholder-key'
+);

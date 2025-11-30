@@ -3,6 +3,7 @@ export interface ReceiptItem {
   name: string;
   price: number;
   assignedTo: string[]; // Array of user IDs
+  billName?: string; // Optional bill name for grouping
 }
 
 export interface User {
@@ -27,4 +28,13 @@ export enum AppStep {
 export interface ExtractedItem {
   name: string;
   price: number;
+}
+
+// Uploaded Bill Type for multiple bill management
+export interface UploadedBill {
+  id: string;
+  fileName: string;
+  items: ReceiptItem[];
+  uploadedAt: Date;
+  imagePreview: string; // Base64 or blob URL for thumbnail
 }

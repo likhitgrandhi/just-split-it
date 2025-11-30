@@ -6,7 +6,8 @@ import { WaitingRoom } from './components/WaitingRoom';
 import { Splitter } from './components/Splitter';
 import { ShareView } from './components/ShareView';
 import { Toast } from './components/Toast';
-import { ReceiptItem, User, AppStep } from './types';
+import { BillReviewScreen } from './components/BillReviewScreen';
+import { ReceiptItem, User, AppStep, UploadedBill } from './types';
 import { fileToGenerativePart, parseReceiptImage } from './services/geminiService';
 import { Activity, Settings, X, Users, ArrowRight } from 'lucide-react';
 import { SplitProvider, useSplit } from './contexts/SplitContext';
@@ -57,6 +58,10 @@ const AppContent: React.FC = () => {
 
   const { toasts, hideToast, success, error: showError } = useToast();
 
+  // Multiple Bills State
+  const [uploadedBills, setUploadedBills] = useState<UploadedBill[]>([]);
+  const [showBillReview, setShowBillReview] = useState(false);
+
   // Join Flow State
   const [joinPin, setJoinPin] = useState('');
   const [joinName, setJoinName] = useState('');
@@ -84,33 +89,100 @@ const AppContent: React.FC = () => {
 
 
 
-  const handleFileSelect = useCallback(async (file: File) => {
+  const handleFileSelect = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
     setIsProcessing(true);
-    try {
-      const base64Data = await fileToGenerativePart(file);
-      const extractedItems = await parseReceiptImage(base64Data, file.type);
+    let successCount = 0;
+    let errorCount = 0;
 
-      const formattedItems: ReceiptItem[] = extractedItems.map(item => ({
-        id: generateId(),
-        name: item.name,
-        price: item.price,
-        assignedTo: []
-      }));
+    // Process all files concurrently
+    const filePromises = files.map(async (file) => {
+      try {
+        const base64Data = await fileToGenerativePart(file);
+        const extractedItems = await parseReceiptImage(base64Data, file.type);
 
-      setItems(formattedItems);
-      // Instead of going straight to USERS, show mode selection
-      setIsModeSelectionOpen(true);
-    } catch (error) {
-      console.error(error);
-      showError("Could not extract data from receipt. Please try a clearer image.");
-    } finally {
-      setIsProcessing(false);
+        const formattedItems: ReceiptItem[] = extractedItems.map(item => ({
+          id: generateId(),
+          name: item.name,
+          price: item.price,
+          assignedTo: []
+        }));
+
+        // Create image preview URL
+        const imagePreview = URL.createObjectURL(file);
+
+        // Create new bill and add to uploaded bills
+        const newBill: UploadedBill = {
+          id: generateId(),
+          fileName: file.name,
+          items: formattedItems,
+          uploadedAt: new Date(),
+          imagePreview
+        };
+
+        return { success: true, bill: newBill, fileName: file.name };
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
+        return { success: false, fileName: file.name };
+      }
+    });
+
+    const results = await Promise.all(filePromises);
+
+    // Add successful bills
+    const successfulBills = results.filter(r => r.success).map(r => r.bill!);
+    if (successfulBills.length > 0) {
+      setUploadedBills(prev => [...prev, ...successfulBills]);
+      setShowBillReview(true);
+      successCount = successfulBills.length;
     }
-  }, [setItems, setIsModeSelectionOpen]);
+
+    errorCount = results.filter(r => !r.success).length;
+
+    // Show appropriate toast message
+    if (successCount > 0 && errorCount === 0) {
+      success(`${successCount} receipt${successCount > 1 ? 's' : ''} uploaded successfully!`);
+    } else if (successCount > 0 && errorCount > 0) {
+      success(`${successCount} receipt${successCount > 1 ? 's' : ''} uploaded. ${errorCount} failed.`);
+    } else if (errorCount > 0) {
+      showError(`Failed to process ${errorCount} receipt${errorCount > 1 ? 's' : ''}. Please try clearer images.`);
+    }
+
+    setIsProcessing(false);
+  }, [success, showError]);
+
+  const handleRemoveBill = useCallback((billId: string) => {
+    setUploadedBills(prev => {
+      const newBills = prev.filter(bill => bill.id !== billId);
+      // If no bills left, hide the review screen
+      if (newBills.length === 0) {
+        setShowBillReview(false);
+      }
+      return newBills;
+    });
+  }, []);
+
+  const handleProceedWithBills = useCallback(() => {
+    // Combine all items from all bills
+    const allItems = uploadedBills.flatMap(bill =>
+      bill.items.map(item => ({
+        ...item,
+        billName: bill.fileName // Inject the bill name
+      }))
+    );
+    console.log('🔍 DEBUG: Proceed with bills called');
+    console.log('📦 Uploaded bills:', uploadedBills.map(b => ({ fileName: b.fileName, itemCount: b.items.length })));
+    console.log('📋 All items with billName:', allItems.map(i => ({ name: i.name, billName: i.billName })));
+    setItems(allItems);
+    setShowBillReview(false);
+    setIsModeSelectionOpen(true);
+  }, [uploadedBills, setItems]);
 
   const handleManualSelect = () => {
     startManualSplit();
-    setIsModeSelectionOpen(false);
+    // Don't close the modal - keep it open and transition to USERS step
+    // setIsModeSelectionOpen(false);
     setStep(AppStep.USERS);
   };
 
@@ -202,6 +274,8 @@ const AppContent: React.FC = () => {
     setJoinPin('');
     setJoinName('');
     setIsJoining(false);
+    setUploadedBills([]);
+    setShowBillReview(false);
   };
 
   const handleCloseJoinModal = () => {
@@ -214,7 +288,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-nike-black text-white selection:bg-nike-volt selection:text-black flex flex-col relative overflow-hidden">
+    <div className="h-screen bg-nike-black text-white selection:bg-nike-volt selection:text-black flex flex-col relative overflow-y-auto">
       {isRestoring && (
         <div className="fixed inset-0 z-[100] bg-nike-black flex items-center justify-center">
           <div className="w-10 h-10 border-4 border-nike-volt border-t-transparent rounded-full animate-spin"></div>
@@ -239,15 +313,49 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Settings Modal */}
+      {/* Mode Selection / User Setup Modal */}
       {isModeSelectionOpen && (
-        <ModeSelection
-          onManualSelect={handleManualSelect}
-          onLiveSelect={handleLiveSelect}
-          isCreating={false} // We could track loading state for createSplit if needed
-          pin={pin}
-          onProceed={handleLiveProceed}
-        />
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          {step === AppStep.USERS ? (
+            // Show UserSetup within the same modal overlay
+            <div className="w-full max-w-2xl bg-nike-card rounded-3xl p-8 shadow-2xl border border-white/5 animate-fade-in h-[500px] flex flex-col">
+              <UserSetup
+                users={users}
+                setUsers={setUsers}
+                onContinue={() => {
+                  // Auto-assign all users to all items by default
+                  setItems(prevItems => prevItems.map(item => ({
+                    ...item,
+                    assignedTo: users.map(u => u.id)
+                  })));
+                  setStep(AppStep.SPLIT);
+                  setIsModeSelectionOpen(false);
+                }}
+                onClose={() => {
+                  setStep(AppStep.UPLOAD);
+                  setShowBillReview(true);
+                  setIsModeSelectionOpen(false);
+                }}
+                onBack={() => {
+                  setStep(AppStep.UPLOAD);
+                }}
+              />
+            </div>
+          ) : (
+            // Show ModeSelection
+            <ModeSelection
+              onManualSelect={handleManualSelect}
+              onLiveSelect={handleLiveSelect}
+              isCreating={false}
+              pin={pin}
+              onProceed={handleLiveProceed}
+              onClose={() => {
+                setIsModeSelectionOpen(false);
+                setShowBillReview(true);
+              }}
+            />
+          )}
+        </div>
       )}
 
       {isCurrencyOpen && (
@@ -355,11 +463,11 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="p-4 md:p-6 flex justify-between items-center sticky top-0 bg-nike-black/90 backdrop-blur-md z-50 border-b border-white/10">
+      <header className="py-4 px-4 md:px-6 flex justify-between items-center sticky top-0 bg-nike-black/90 backdrop-blur-md z-50 border-b border-white/10">
         <div className="flex items-center gap-2 group cursor-pointer touch-manipulation" onClick={handleReset}>
           <Activity className="text-nike-volt w-6 h-6 md:w-8 md:h-8 transform -skew-x-12" strokeWidth={3} />
           <h1 className="text-xl md:text-2xl font-extrabold italic uppercase tracking-tighter leading-none">
-            Just<br /><span className="text-nike-volt">Split It</span>
+            Split<span className="text-nike-volt">ways</span>
           </h1>
         </div>
 
@@ -420,10 +528,22 @@ const AppContent: React.FC = () => {
             <div className="w-full flex-1 flex flex-col">
               {activeTab === 'host' ? (
                 <div className="animate-fade-in flex-1 flex flex-col">
-                  <UploadZone onFileSelect={handleFileSelect} isProcessing={isProcessing} />
-                  <p className="text-center text-nike-subtext text-sm mt-6">
-                    Upload a receipt to start splitting
-                  </p>
+                  {showBillReview ? (
+                    <BillReviewScreen
+                      uploadedBills={uploadedBills}
+                      onRemoveBill={handleRemoveBill}
+                      onAddBill={handleFileSelect}
+                      onProceed={handleProceedWithBills}
+                      isProcessing={isProcessing}
+                    />
+                  ) : (
+                    <>
+                      <UploadZone onFileSelect={handleFileSelect} isProcessing={isProcessing} />
+                      <p className="text-center text-nike-subtext text-sm mt-6">
+                        Upload a receipt to start splitting
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="animate-fade-in flex-1 flex flex-col justify-center">
@@ -465,29 +585,9 @@ const AppContent: React.FC = () => {
               )}
             </div>
 
-            {!isProcessing && (
-              <div className="mt-auto pt-8 text-center opacity-30 pb-4">
-                <p className="text-[10px] font-mono uppercase tracking-widest">Powered by Gemini 2.5 Flash</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {step === AppStep.USERS && (
-          <div className="flex justify-center flex-1 items-center animate-fade-in">
-            <div className="w-full max-w-lg bg-nike-card rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xl border border-white/5">
-              <UserSetup
-                users={users}
-                setUsers={setUsers}
-                onContinue={() => {
-                  // Auto-assign all users to all items by default
-                  setItems(prevItems => prevItems.map(item => ({
-                    ...item,
-                    assignedTo: users.map(u => u.id)
-                  })));
-                  setStep(AppStep.SPLIT);
-                }}
-              />
+            {/* Powered by text - always at the bottom */}
+            <div className="mt-auto pt-8 text-center opacity-30 pb-4">
+              <p className="text-[10px] font-mono uppercase tracking-widest">Powered by Gemini 2.5 Flash</p>
             </div>
           </div>
         )}
