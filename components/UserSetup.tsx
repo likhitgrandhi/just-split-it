@@ -76,12 +76,12 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
 
           {/* Title */}
           <div className="mb-6">
-            <h1 className="text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md mb-3">
+            <h1 className="text-4xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md mb-3">
               <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
               <span className="relative z-10">splitto</span>
             </h1>
-            <h2 className="text-2xl font-bold text-black mb-1">Who's Paying?</h2>
-            <p className="text-cloud-subtext text-sm">Add your crew. Separate names with commas.</p>
+            <h2 className="text-3xl font-bold text-black mb-1">Who's Paying?</h2>
+            <p className="text-cloud-subtext text-base font-medium">Add your crew. Separate names with commas.</p>
           </div>
 
           {/* Input */}

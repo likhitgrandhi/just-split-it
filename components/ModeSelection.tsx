@@ -71,16 +71,16 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
 
                         {/* Logo centered */}
                         <div className="text-center mb-8">
-                            <h1 className="text-4xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
+                            <h1 className="text-5xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block drop-shadow-md">
                                 <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
                                 <span className="relative z-10">splitto</span>
                             </h1>
-                            <p className="text-cloud-subtext text-sm font-medium mt-1">The right way to split</p>
+                            <p className="text-cloud-subtext text-base font-medium mt-2">The right way to split</p>
                         </div>
 
                         <div className="text-center mb-6">
-                            <h2 className="text-2xl font-bold text-cloud-text mb-1">How do you want to split?</h2>
-                            <p className="text-cloud-subtext text-sm">Choose the best way for your group</p>
+                            <h2 className="text-3xl font-bold text-cloud-text mb-1">How do you want to split?</h2>
+                            <p className="text-cloud-subtext text-base">Choose the best way for your group</p>
                         </div>
 
                         {/* Cards - flex to fill available space */}
@@ -198,8 +198,8 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                             <button
                                 onClick={handleCopyLink}
                                 className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all mb-4 ${linkCopied
-                                        ? 'bg-green-100 text-green-600'
-                                        : 'bg-gray-100 text-cloud-text active:bg-gray-200'
+                                    ? 'bg-green-100 text-green-600'
+                                    : 'bg-gray-100 text-cloud-text active:bg-gray-200'
                                     }`}
                             >
                                 {linkCopied ? (
@@ -369,8 +369,8 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                         <button
                             onClick={handleCopyLink}
                             className={`w-full py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all mb-6 ${linkCopied
-                                    ? 'bg-green-100 text-green-600 border-2 border-green-200'
-                                    : 'bg-white text-cloud-text border-2 border-gray-200 hover:border-cloud-primary hover:text-cloud-primary'
+                                ? 'bg-green-100 text-green-600 border-2 border-green-200'
+                                : 'bg-white text-cloud-text border-2 border-gray-200 hover:border-cloud-primary hover:text-cloud-primary'
                                 }`}
                         >
                             {linkCopied ? (
