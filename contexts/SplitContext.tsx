@@ -29,6 +29,8 @@ interface SplitContextType {
     leaveSplit: () => Promise<void>;
     isLiveMode: boolean;
     forceEndSplit: () => Promise<void>;
+    splitItem: (itemId: string) => void;
+    mergeItems: (splitGroupId: string) => void;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -524,6 +526,116 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
 
+    // Split an item with quantity > 1 into two separate items
+    const splitItem = async (itemId: string) => {
+        const item = items.find(i => i.id === itemId);
+        if (!item || item.quantity <= 1) return;
+
+        const unitPrice = item.price / item.quantity;
+        const groupId = item.splitGroupId || item.id; // Use existing group or create new one based on original item ID
+
+        // Create new item with quantity 1
+        const newItem: ReceiptItem = {
+            id: crypto.randomUUID(),
+            name: item.name,
+            price: unitPrice,
+            quantity: 1,
+            assignedTo: [...item.assignedTo], // Copy assignments
+            splitGroupId: groupId
+        };
+
+        // Update original item (reduce quantity and price)
+        const newItems = items.map(i => {
+            if (i.id === itemId) {
+                return {
+                    ...i,
+                    quantity: i.quantity - 1,
+                    price: i.price - unitPrice,
+                    splitGroupId: groupId
+                };
+            }
+            return i;
+        });
+
+        // Insert new item right after the original
+        const originalIndex = newItems.findIndex(i => i.id === itemId);
+        newItems.splice(originalIndex + 1, 0, newItem);
+
+        setItems(newItems);
+
+        // Sync to server if in live mode
+        if (pin) {
+            isUpdatingRef.current = true;
+            try {
+                await updateSplitData(pin, {
+                    items: newItems,
+                    users,
+                    hostId: '',
+                    status: splitStatus
+                });
+            } catch (err) {
+                console.error("Failed to sync split", err);
+            } finally {
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
+            }
+        }
+    };
+
+    // Merge all items with the same splitGroupId back into one
+    const mergeItems = async (splitGroupId: string) => {
+        const itemsToMerge = items.filter(i => i.splitGroupId === splitGroupId);
+        if (itemsToMerge.length <= 1) return;
+
+        // Calculate merged values
+        const totalQuantity = itemsToMerge.reduce((sum, i) => sum + i.quantity, 0);
+        const totalPrice = itemsToMerge.reduce((sum, i) => sum + i.price, 0);
+        
+        // Merge all assignedTo arrays and deduplicate
+        const allAssigned = [...new Set(itemsToMerge.flatMap(i => i.assignedTo))];
+
+        // Keep the first item and update it with merged values
+        const firstItem = itemsToMerge[0];
+        const otherItemIds = itemsToMerge.slice(1).map(i => i.id);
+
+        const newItems = items
+            .filter(i => !otherItemIds.includes(i.id)) // Remove other items
+            .map(i => {
+                if (i.id === firstItem.id) {
+                    return {
+                        ...i,
+                        quantity: totalQuantity,
+                        price: totalPrice,
+                        assignedTo: allAssigned,
+                        splitGroupId: undefined // Remove split group since it's merged
+                    };
+                }
+                return i;
+            });
+
+        setItems(newItems);
+
+        // Sync to server if in live mode
+        if (pin) {
+            isUpdatingRef.current = true;
+            try {
+                await updateSplitData(pin, {
+                    items: newItems,
+                    users,
+                    hostId: '',
+                    status: splitStatus
+                });
+            } catch (err) {
+                console.error("Failed to sync merge", err);
+            } finally {
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
+            }
+        }
+    };
+
     const toggleLock = async () => {
         if (!pin) return;
         isUpdatingRef.current = true;
@@ -682,7 +794,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             clearPendingJoinPin,
             leaveSplit,
             isLiveMode,
-            forceEndSplit
+            forceEndSplit,
+            splitItem,
+            mergeItems
         }}>
             {children}
         </SplitContext.Provider>

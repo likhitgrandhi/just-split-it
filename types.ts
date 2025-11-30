@@ -2,7 +2,9 @@ export interface ReceiptItem {
   id: string;
   name: string;
   price: number;
+  quantity: number;
   assignedTo: string[]; // Array of user IDs
+  splitGroupId?: string; // Groups items that were split from the same original item
 }
 
 export interface User {
@@ -27,4 +29,5 @@ export enum AppStep {
 export interface ExtractedItem {
   name: string;
   price: number;
+  quantity: number;
 }
