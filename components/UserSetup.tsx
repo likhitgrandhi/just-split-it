@@ -147,9 +147,10 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
     );
   }
 
-  // Desktop: Card view (original)
+  // Desktop: Card view with wrapper
   return (
-    <div className="w-full flex flex-col h-full bg-pastel-purple rounded-[3rem] p-8 md:p-10 shadow-sm border border-black/5 relative">
+    <div className="flex justify-center flex-1 items-center animate-fade-in p-4">
+      <div className="w-full max-w-lg flex flex-col bg-pastel-purple rounded-[3rem] p-8 md:p-10 shadow-sm border border-black/5 relative">
       <button
         onClick={onClose}
         className="absolute top-8 right-8 p-2 rounded-full hover:bg-black/5 text-black/40 hover:text-black transition-colors"
@@ -215,13 +216,14 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
         )}
       </div>
 
-      <button
-        onClick={onContinue}
-        disabled={users.length === 0}
-        className="w-full bg-black text-white font-black text-xl py-6 rounded-[2rem] hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-auto shadow-lg hover:shadow-xl hover:-translate-y-1"
-      >
-        Start Splitting
-      </button>
+        <button
+          onClick={onContinue}
+          disabled={users.length === 0}
+          className="w-full bg-black text-white font-black text-xl py-6 rounded-[2rem] hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-auto shadow-lg hover:shadow-xl hover:-translate-y-1"
+        >
+          Start Splitting
+        </button>
+      </div>
     </div>
   );
 };

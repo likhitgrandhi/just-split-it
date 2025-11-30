@@ -409,37 +409,35 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* Header - Settings Only */}
-      <header className="px-6 py-6 md:px-10 md:py-8 flex justify-end items-center sticky top-0 z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          <button
-            onClick={() => setIsCurrencyOpen(true)}
-            className="w-12 h-12 rounded-full bg-white text-black hover:bg-gray-50 shadow-sm hover:shadow-md transition-all flex items-center justify-center border border-gray-100"
-          >
-            <Settings size={24} strokeWidth={2} />
-          </button>
-        </div>
+      {/* Header - Settings Only - Absolute positioned so it doesn't take space */}
+      <header className="absolute top-0 right-0 px-4 py-3 md:px-10 md:py-6 z-50">
+        <button
+          onClick={() => setIsCurrencyOpen(true)}
+          className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-black active:bg-gray-50 md:hover:bg-gray-50 shadow-sm md:hover:shadow-md transition-all flex items-center justify-center border border-gray-100"
+        >
+          <Settings size={20} strokeWidth={2} />
+        </button>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col h-[calc(100dvh-100px)] -mt-20">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-4 md:p-8 flex flex-col min-h-0">
         {step === AppStep.UPLOAD && (
-          <div className="flex flex-col items-center pt-4 md:pt-8 justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto">
+          <div className="flex flex-col items-center flex-1 animate-fade-in w-full max-w-lg mx-auto min-h-0">
 
             {/* Logo - Centered */}
-            <div className="mb-6 md:mb-10 text-center group cursor-pointer" onClick={handleReset}>
-              <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
+            <div className="mb-4 md:mb-8 text-center group cursor-pointer pt-2" onClick={handleReset}>
+              <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none transition-transform duration-300 hover:scale-105 relative inline-block drop-shadow-xl">
                 <span className="absolute inset-0 text-stroke-8 text-white z-0" aria-hidden="true">splitto</span>
                 <span className="relative z-10">splitto</span>
               </h1>
-              <p className="text-cloud-subtext text-sm md:text-lg font-medium mt-1 md:mt-2 tracking-wide">The right way to split</p>
+              <p className="text-cloud-subtext text-xs md:text-lg font-medium mt-1 tracking-wide">The right way to split</p>
             </div>
 
             {/* Tabs */}
-            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-4 md:mb-8 shadow-inner-soft">
+            <div className="flex w-full bg-gray-100 p-1 md:p-1.5 rounded-full mb-3 md:mb-8 shadow-inner-soft flex-shrink-0">
               <button
                 onClick={() => setActiveTab('host')}
-                className={`flex-1 py-3 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 transform ${activeTab === 'host'
+                className={`flex-1 py-2.5 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'host'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
@@ -448,7 +446,7 @@ const AppContent: React.FC = () => {
               </button>
               <button
                 onClick={() => setActiveTab('join')}
-                className={`flex-1 py-3 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 transform ${activeTab === 'join'
+                className={`flex-1 py-2.5 md:py-4 rounded-full font-bold text-sm md:text-lg transition-all duration-300 transform ${activeTab === 'join'
                   ? 'bg-white text-black shadow-sm scale-100'
                   : 'text-gray-400 active:text-gray-600 scale-95'
                   }`}
@@ -457,25 +455,25 @@ const AppContent: React.FC = () => {
               </button>
             </div>
 
-            <div className="w-full flex-1 flex flex-col min-h-0">
+            <div className="w-full flex-1 flex flex-col min-h-0 pb-2">
               {activeTab === 'host' ? (
                 <div className="animate-fade-in flex-1 flex flex-col min-h-0">
                   <UploadZone onFileSelect={handleFileSelect} isProcessing={isProcessing} />
                 </div>
               ) : (
-                <div className="animate-fade-in flex-1 flex flex-col">
-                  <div className="bg-pastel-green rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 shadow-sm border border-black/5 relative overflow-hidden">
+                <div className="animate-fade-in flex-1 flex flex-col min-h-0">
+                  <div className="bg-pastel-green rounded-[2rem] md:rounded-[3rem] p-5 md:p-10 shadow-sm border border-black/5 relative overflow-hidden flex-1 flex flex-col justify-center">
                     <div className="relative z-10">
-                      <h2 className="text-2xl md:text-3xl font-black text-black mb-2 md:mb-3 text-center tracking-tight">Enter PIN</h2>
-                      <p className="text-base md:text-xl text-gray-600 mb-6 md:mb-10 text-center font-medium">Ask the host for the 4-digit code</p>
+                      <h2 className="text-xl md:text-3xl font-black text-black mb-1 md:mb-3 text-center tracking-tight">Enter PIN</h2>
+                      <p className="text-sm md:text-xl text-gray-600 mb-4 md:mb-10 text-center font-medium">Ask the host for the 4-digit code</p>
 
                       {error && (
-                        <div className="bg-white/50 border-2 border-red-100 rounded-2xl md:rounded-3xl p-3 md:p-4 mb-4 md:mb-6 flex items-center gap-2 md:gap-3 text-red-500 text-sm md:text-lg font-bold animate-shake">
+                        <div className="bg-white/50 border-2 border-red-100 rounded-xl md:rounded-3xl p-2.5 md:p-4 mb-3 md:mb-6 flex items-center gap-2 text-red-500 text-xs md:text-lg font-bold animate-shake">
                           <span>⚠️</span> {error}
                         </div>
                       )}
 
-                      <form onSubmit={handleJoinSubmit} className="flex flex-col gap-4 md:gap-6">
+                      <form onSubmit={handleJoinSubmit} className="flex flex-col gap-3 md:gap-6">
                         <label htmlFor="join-pin-input" className="sr-only">Enter PIN</label>
                         <input
                           id="join-pin-input"
@@ -489,12 +487,12 @@ const AppContent: React.FC = () => {
                             setJoinPin(e.target.value.replace(/[^0-9]/g, ''));
                             setError(null);
                           }}
-                          className="w-full bg-white/60 border-2 border-transparent focus:border-black/10 rounded-2xl md:rounded-[2rem] px-4 md:px-6 py-5 md:py-8 text-center text-5xl md:text-7xl tracking-[0.15em] md:tracking-[0.2em] font-black text-black focus:outline-none transition-all placeholder:text-black/10 shadow-inner-soft"
+                          className="w-full bg-white/60 border-2 border-transparent focus:border-black/10 rounded-xl md:rounded-[2rem] px-4 md:px-6 py-4 md:py-8 text-center text-4xl md:text-7xl tracking-[0.12em] md:tracking-[0.2em] font-black text-black focus:outline-none transition-all placeholder:text-black/10 shadow-inner-soft"
                         />
                         <button
                           type="submit"
                           disabled={joinPin.length !== 4 || isProcessing}
-                          className="w-full py-4 md:py-6 bg-black text-white rounded-2xl md:rounded-[2rem] font-bold text-lg md:text-2xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2 md:mt-4 active:scale-[0.98] transform"
+                          className="w-full py-3.5 md:py-6 bg-black text-white rounded-xl md:rounded-[2rem] font-bold text-base md:text-2xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-1 md:mt-4 active:scale-[0.98] transform"
                         >
                           {isProcessing ? 'Checking...' : 'Join Split'}
                         </button>
@@ -508,23 +506,19 @@ const AppContent: React.FC = () => {
         )}
 
         {step === AppStep.USERS && (
-          <div className="flex justify-center flex-1 items-center animate-fade-in">
-            <div className="w-full max-w-lg bg-white rounded-[3rem] p-8 md:p-10 shadow-soft border border-white/50">
-              <UserSetup
-                users={users}
-                setUsers={setUsers}
-                onContinue={() => {
-                  // Auto-assign all users to all items by default
-                  setItems(prevItems => prevItems.map(item => ({
-                    ...item,
-                    assignedTo: users.map(u => u.id)
-                  })));
-                  setStep(AppStep.SPLIT);
-                }}
-                onClose={handleReset}
-              />
-            </div>
-          </div>
+          <UserSetup
+            users={users}
+            setUsers={setUsers}
+            onContinue={() => {
+              // Auto-assign all users to all items by default
+              setItems(prevItems => prevItems.map(item => ({
+                ...item,
+                assignedTo: users.map(u => u.id)
+              })));
+              setStep(AppStep.SPLIT);
+            }}
+            onClose={handleReset}
+          />
         )}
 
         {step === AppStep.SPLIT && (
