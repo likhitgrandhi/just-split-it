@@ -1,6 +1,6 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { ArrowLeft, Copy, Loader2, CheckCircle2, Share2, Home } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import React, { useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Copy, Loader2, Share2, Home } from 'lucide-react';
+import * as htmlToImage from 'html-to-image';
 import { useSplit } from '../contexts/SplitContext';
 import { useToast } from '../hooks/useToast';
 import { Toast } from './Toast';
@@ -15,19 +15,18 @@ interface ShareViewProps {
 }
 
 export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }) => {
-  const { items, users, pin, createSplit, isLiveMode } = useSplit();
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { items, users, pin, isLiveMode } = useSplit();
   const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const [copyingId, setCopyingId] = useState<string | null>(null);
-  const [isCreatingPin, setIsCreatingPin] = useState(false);
   const { toasts, hideToast, success, error: showError } = useToast();
-
-  // Note: We no longer auto-generate PIN for manual mode
-  // PINs are only created in live mode when the host explicitly creates a room
 
   // Calculate data per user
   const userSplits = useMemo(() => {
+    if (!users || !Array.isArray(users) || !items || !Array.isArray(items)) {
+      return [];
+    }
     return users.map(user => {
       const userItems = items
         .filter(item => item.assignedTo.includes(user.id))
@@ -46,58 +45,39 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
     });
   }, [items, users]);
 
-  const handleCopyImage = async (userId: string, userName: string) => {
-    const element = cardRefs.current[userId];
-    if (!element) return;
+  // Get the data for the user currently being copied
+  const exportData = useMemo(() => {
+    if (!copyingId) return null;
+    return userSplits.find(u => u.user.id === copyingId);
+  }, [copyingId, userSplits]);
 
+  const handleCopyImage = (userId: string) => {
     setCopyingId(userId);
+    // The actual capture happens in useEffect when exportData is ready
+  };
 
-    // 1. Create a deep clone of the card to manipulate for the screenshot
-    const clone = element.cloneNode(true) as HTMLElement;
+  // Effect to capture image when exportData is ready
+  React.useEffect(() => {
+    if (!copyingId || !exportData || !exportRef.current) return;
 
-    // 2. Style the clone
-    Object.assign(clone.style, {
-      position: 'fixed',
-      top: '-10000px',
-      left: '-10000px',
-      width: '400px', // Fixed reasonable width for the image
-      height: 'auto',
-      maxHeight: 'none',
-      transform: 'none',
-      zIndex: '-1',
-      borderRadius: '24px',
-    });
+    const captureImage = async () => {
+      // Double-check the ref exists after a frame to ensure DOM is painted
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      if (!exportRef.current) {
+        setCopyingId(null);
+        return;
+      }
 
-    // 3. Fix internal layout
-    const scrollContainer = clone.querySelector('.overflow-y-auto');
-    if (scrollContainer) {
-      const el = scrollContainer as HTMLElement;
-      el.style.overflow = 'visible';
-      el.style.height = 'auto';
-      el.style.maxHeight = 'none';
-      el.classList.remove('pb-24');
-      el.style.paddingBottom = '2rem';
-    }
-
-    // Remove buttons
-    const actionContainer = clone.querySelector('.ignore-in-capture');
-    if (actionContainer) {
-      actionContainer.remove();
-    }
-
-    document.body.appendChild(clone);
-
-    try {
-      const canvas = await html2canvas(clone, {
-        backgroundColor: '#1C1C1E',
-        scale: 3,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-      });
-
-      canvas.toBlob(async (blob) => {
-        document.body.removeChild(clone);
+      try {
+        const blob = await htmlToImage.toBlob(exportRef.current, {
+          cacheBust: true,
+          backgroundColor: '#ffffff',
+          width: 1080,
+          style: {
+            transform: 'scale(1)',
+          }
+        });
 
         if (!blob) {
           showError("Failed to generate image.");
@@ -105,59 +85,55 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
           return;
         }
 
-        try {
-          // Try Web Share API first (works on mobile)
-          if (navigator.share && navigator.canShare) {
-            const file = new File([blob], `${userName}-split.png`, { type: 'image/png' });
-            const shareData = {
-              files: [file],
-              title: `${userName}'s Split`,
-              text: `Here's your split breakdown for ${userName}`
-            };
+        const userName = exportData.user.name;
 
-            if (navigator.canShare(shareData)) {
-              await navigator.share(shareData);
-              setCopyingId(null);
-              return;
-            }
-          }
+        // Try Web Share API first (works on mobile)
+        if (navigator.share && navigator.canShare) {
+          const file = new File([blob], `${userName}-split.png`, { type: 'image/png' });
+          const shareData = {
+            files: [file],
+            title: `${userName}'s Split`,
+            text: `Here's your split breakdown for ${userName}`
+          };
 
-          // Fallback 1: Try clipboard
-          try {
-            const item = new ClipboardItem({ 'image/png': blob });
-            await navigator.clipboard.write([item]);
-            setTimeout(() => setCopyingId(null), 1500);
+          if (navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            setCopyingId(null);
             return;
-          } catch (clipErr) {
-            console.log("Clipboard failed, trying download...", clipErr);
           }
-
-          // Fallback 2: Download image
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${userName}-split.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          setTimeout(() => setCopyingId(null), 1500);
-
-        } catch (err) {
-          console.error("Share failed", err);
-          showError("Could not share image. Please try again.");
-          setCopyingId(null);
         }
-      }, 'image/png');
 
-    } catch (error) {
-      console.error("Error generating image:", error);
-      if (document.body.contains(clone)) {
-        document.body.removeChild(clone);
+        // Fallback 1: Try clipboard
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          success("Image copied to clipboard!");
+          setCopyingId(null);
+          return;
+        } catch (clipErr) {
+          console.log("Clipboard failed, trying download...", clipErr);
+        }
+
+        // Fallback 2: Download image
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${userName}-split.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setCopyingId(null);
+
+      } catch (err) {
+        console.error("Share failed", err);
+        showError("Could not share image. Please try again.");
+        setCopyingId(null);
       }
-      setCopyingId(null);
-    }
-  };
+    };
+
+    captureImage();
+  }, [copyingId, exportData, success, showError]);
 
   const handleSharePin = async () => {
     if (!pin) return;
@@ -224,10 +200,7 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
 
       {/* Vertical Stack Container */}
       <div className="flex-1 overflow-y-auto relative min-h-0 w-full bg-gray-50/50">
-        <div
-          ref={scrollContainerRef}
-          className="w-full min-h-full flex flex-col gap-6 items-center py-8 px-4"
-        >
+        <div className="w-full min-h-full flex flex-col gap-6 items-center py-8 px-4">
           {userSplits.map((data) => {
             const isCopying = copyingId === data.user.id;
             const isHex = data.user.color.startsWith('#');
@@ -236,46 +209,46 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
               <div
                 key={data.user.id}
                 ref={(el) => { cardRefs.current[data.user.id] = el; }}
-                className="w-full max-w-md bg-white border border-black/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-xl relative group transition-transform hover:scale-[1.01] duration-300"
+                className="w-full max-w-md bg-white border border-black/5 rounded-[2rem] overflow-hidden flex flex-col shadow-xl relative group transition-transform hover:scale-[1.01] duration-300"
                 style={{ height: 'auto' }}
               >
                 {/* Card Header */}
-                <div className="p-6 md:p-8 pb-3 md:pb-4 flex flex-col items-center">
+                <div className="p-6 pb-3 flex flex-col items-center">
                   <div
-                    className={`w-16 h-16 md:w-20 md:h-20 rounded-full mb-3 md:mb-4 flex items-center justify-center shadow-md border-4 border-white ${!isHex ? data.user.color : ''}`}
+                    className={`w-16 h-16 rounded-full mb-3 flex items-center justify-center shadow-md border-4 border-white ${!isHex ? data.user.color : ''}`}
                     style={isHex ? { backgroundColor: data.user.color } : {}}
                   >
-                    <span className="text-2xl md:text-3xl font-black text-white">{data.user.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-2xl font-black text-white">{data.user.name.charAt(0).toUpperCase()}</span>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-black text-black mb-1 text-center">
+                  <h3 className="text-xl font-black text-black mb-1 text-center tracking-tight">
                     {data.user.name}
                   </h3>
-                  <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-widest">
+                  <div className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                     Total Share
                   </div>
                 </div>
 
                 {/* Amount */}
-                <div className="flex justify-center py-3 md:py-4">
-                  <span className="text-3xl md:text-4xl font-black text-black bg-pastel-yellow px-5 md:px-6 py-2 rounded-xl md:rounded-2xl transform -rotate-2 shadow-sm border border-black/5">
+                <div className="flex justify-center py-3">
+                  <span className="text-4xl font-black text-black bg-pastel-yellow px-6 py-2 rounded-2xl transform -rotate-2 shadow-sm border border-black/5">
                     {currency}{data.total.toFixed(2)}
                   </span>
                 </div>
 
                 {/* Item List */}
-                <div className="flex-1 overflow-y-auto px-5 md:px-6 pb-20 no-scrollbar space-y-1.5 md:space-y-2 mt-1 md:mt-2">
+                <div className="flex-1 overflow-y-auto px-6 pb-20 no-scrollbar space-y-2 mt-2">
                   {data.items.length === 0 ? (
                     <div className="text-center text-gray-400 text-sm py-8 font-medium">
                       No items assigned
                     </div>
                   ) : (
                     data.items.map((item, idx) => (
-                      <div key={`${item.id}-${idx}`} className="flex justify-between items-center text-xs md:text-sm group/item p-1.5 md:p-2 active:bg-gray-50 md:hover:bg-gray-50 rounded-lg md:rounded-xl transition-colors">
-                        <span className="text-gray-600 font-bold truncate max-w-[150px] md:max-w-[180px] flex items-center gap-1.5 md:gap-2">
-                          <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-gray-300"></div>
+                      <div key={`${item.id}-${idx}`} className="flex justify-between items-center text-sm group/item p-2 active:bg-gray-50 rounded-xl transition-colors">
+                        <span className="text-gray-600 font-bold truncate max-w-[180px] flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0"></div>
                           {item.name}
                         </span>
-                        <span className="font-bold text-black bg-gray-100 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs">
+                        <span className="font-bold text-black bg-gray-100 px-2 py-1 rounded-lg text-xs flex-shrink-0">
                           {currency}{item.splitPrice.toFixed(2)}
                         </span>
                       </div>
@@ -283,18 +256,18 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
                   )}
 
                   {/* Branding Footer */}
-                  <div className="pt-6 md:pt-8 pb-2 md:pb-4 flex justify-center opacity-30">
-                    <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest">splitto</span>
+                  <div className="pt-6 pb-2 flex justify-center opacity-30">
+                    <span className="text-[10px] font-bold uppercase tracking-widest">splitto</span>
                   </div>
                 </div>
 
                 {/* Card Actions */}
-                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 bg-gradient-to-t from-white via-white to-transparent ignore-in-capture pt-10 md:pt-12">
+                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent pt-12">
                   <button
-                    onClick={() => handleCopyImage(data.user.id, data.user.name)}
+                    onClick={() => handleCopyImage(data.user.id)}
                     disabled={isCopying}
                     className={`
-                        w-full py-3.5 md:py-4 rounded-xl md:rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs transition-all flex items-center justify-center gap-2 touch-manipulation shadow-lg
+                        w-full py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 touch-manipulation shadow-lg
                         ${isCopying ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-black text-white active:bg-gray-800 active:scale-[0.98]'}
                     `}
                   >
@@ -317,7 +290,84 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
         </div>
       </div>
 
+      {/* Hidden Export View - High Resolution */}
+      <div style={{ position: 'fixed', left: '-9999px', top: '-9999px' }}>
+        {exportData && (
+          <div
+            ref={exportRef}
+            id="export-container"
+            className="bg-white p-12 flex flex-col items-center relative"
+            style={{ width: '1080px', minHeight: '1920px' }} // Instagram Story dimensions
+          >
+            {/* Background Pattern */}
+            <div className="absolute inset-0 bg-gray-50/50 z-0"></div>
 
+            {/* Content Container */}
+            <div className="relative z-10 w-full flex flex-col items-center flex-1">
+
+              {/* Logo */}
+              <div className="mb-12 mt-8">
+                <h1 className="text-7xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block">
+                  <span className="absolute inset-0 text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
+                  <span className="relative z-10">splitto</span>
+                </h1>
+              </div>
+
+              {/* User Avatar */}
+              <div
+                className={`w-40 h-40 rounded-full mb-8 flex items-center justify-center shadow-lg border-8 border-white ${!exportData.user.color.startsWith('#') ? exportData.user.color : ''}`}
+                style={exportData.user.color.startsWith('#') ? { backgroundColor: exportData.user.color } : {}}
+              >
+                <span className="text-7xl font-black text-white">{exportData.user.name.charAt(0).toUpperCase()}</span>
+              </div>
+
+              {/* User Name */}
+              <h2 className="text-5xl font-black text-black mb-4 text-center tracking-tight">
+                {exportData.user.name}
+              </h2>
+              <div className="text-gray-400 text-xl font-bold uppercase tracking-widest mb-12">
+                Total Share
+              </div>
+
+              {/* Total Amount */}
+              <div className="mb-16">
+                <span className="text-8xl font-black text-black bg-pastel-yellow px-12 py-6 rounded-[3rem] transform -rotate-2 shadow-md border-2 border-black/5 inline-block">
+                  {currency}{exportData.total.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Items List */}
+              <div className="w-full max-w-3xl bg-white rounded-[3rem] p-10 shadow-xl border border-black/5 flex-1 mb-12">
+                <h3 className="text-2xl font-bold text-gray-400 uppercase tracking-widest mb-8 text-center">Breakdown</h3>
+                <div className="space-y-6">
+                  {exportData.items.length === 0 ? (
+                    <div className="text-center text-gray-400 text-2xl py-12 font-medium">
+                      No items assigned
+                    </div>
+                  ) : (
+                    exportData.items.map((item, idx) => (
+                      <div key={`${item.id}-${idx}`} className="flex justify-between items-start text-3xl p-4 border-b border-gray-100 last:border-0">
+                        <span className="text-gray-700 font-bold flex items-start gap-4 flex-1 mr-8">
+                          <div className="w-3 h-3 rounded-full bg-gray-300 flex-shrink-0 mt-4"></div>
+                          <span className="leading-tight">{item.name}</span>
+                        </span>
+                        <span className="font-black text-black bg-gray-100 px-4 py-2 rounded-xl flex-shrink-0">
+                          {currency}{item.splitPrice.toFixed(2)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-auto mb-8 text-center">
+                <p className="text-gray-400 text-xl font-medium">Split with style on Splitto</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Toast Notifications */}
       {toasts.map(toast => (
