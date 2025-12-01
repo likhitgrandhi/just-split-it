@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     optimizeDeps: {
-      include: ['@supabase/supabase-js', 'tslib']
+      include: ['@supabase/supabase-js', 'tslib', 'html-to-image']
     }
   };
 });

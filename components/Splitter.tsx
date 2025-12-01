@@ -91,12 +91,12 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
     <div className="flex flex-col lg:flex-row h-full gap-4 lg:gap-6 overflow-hidden relative">
       {/* Left Column: Items List */}
       <div className="flex-1 flex flex-col min-h-0 bg-pastel-blue rounded-[2rem] lg:rounded-[3rem] overflow-hidden border border-black/5 shadow-sm transition-all duration-300 pb-28 lg:pb-0">
-        {/* Mobile Header - Compact */}
-        <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-black/5 px-4 py-3 flex justify-between items-center sticky top-0 z-50">
+        {/* Mobile Header - Apple HIG compliant */}
+        <div className="lg:hidden bg-white/80 backdrop-blur-sm border-b border-black/5 px-4 py-2 flex justify-between items-center sticky top-0 z-50 min-h-[44px]">
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="p-2 -ml-2 rounded-full active:bg-black/5 text-black/40 active:text-black transition-colors"
+              className="w-11 h-11 -ml-2 rounded-full active:bg-black/5 text-black/40 active:text-black transition-colors flex items-center justify-center"
             >
               <X size={22} />
             </button>
@@ -104,15 +104,15 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               <span className="absolute inset-0 text-stroke-2 text-white z-0" aria-hidden="true">splitto</span>
               <span className="relative z-10">splitto</span>
             </h1>
-            {splitStatus === 'locked' && <span className="text-[10px] font-bold text-white bg-black px-2 py-0.5 rounded-full">🔒</span>}
+            {splitStatus === 'locked' && <span className="text-[11px] font-bold text-white bg-black px-2 py-0.5 rounded-full">🔒</span>}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {/* Live mode: Host waiting to start */}
             {isHost && isLiveMode && splitStatus === 'waiting' && (
               <button
                 onClick={startRoom}
-                className="bg-black text-white px-4 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] active:bg-gray-800 transition-all shadow-md"
+                className="bg-black text-white px-4 h-11 rounded-xl font-bold uppercase tracking-wider text-[11px] active:bg-gray-800 transition-all shadow-md flex items-center justify-center"
               >
                 Start
               </button>
@@ -123,19 +123,19 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               <>
                 <button
                   onClick={toggleLock}
-                  className={`p-2 rounded-xl transition-colors ${splitStatus === 'locked'
+                  className={`w-11 h-11 rounded-xl transition-colors flex items-center justify-center ${splitStatus === 'locked'
                     ? 'bg-black text-white'
                     : 'bg-white text-black border border-black/10'
                     }`}
                 >
-                  <Lock size={16} />
+                  <Lock size={18} />
                 </button>
                 <button
                   onClick={handleEndSplit}
                   disabled={isEnding}
-                  className="p-2 rounded-xl bg-red-100 text-red-600 active:bg-red-200 transition-colors disabled:opacity-50"
+                  className="w-11 h-11 rounded-xl bg-red-100 text-red-600 active:bg-red-200 transition-colors disabled:opacity-50 flex items-center justify-center"
                 >
-                  {isEnding ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+                  {isEnding ? <Loader2 size={18} className="animate-spin" /> : <X size={18} />}
                 </button>
               </>
             )}
@@ -148,7 +148,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                     leaveSplit();
                   }
                 }}
-                className="px-3 py-2 rounded-xl font-bold uppercase tracking-wider text-[10px] bg-gray-100 text-gray-600 active:bg-gray-200 transition-colors"
+                className="px-3 h-11 rounded-xl font-bold uppercase tracking-wider text-[11px] bg-gray-100 text-gray-600 active:bg-gray-200 transition-colors flex items-center justify-center"
               >
                 Leave
               </button>
@@ -156,7 +156,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
 
             <button
               onClick={onShare}
-              className="p-2.5 rounded-full bg-white text-black border border-black/5 active:bg-gray-50 transition-all shadow-sm"
+              className="w-11 h-11 rounded-full bg-white text-black border border-black/5 active:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
             >
               <Share2 size={18} strokeWidth={2.5} />
             </button>
@@ -289,7 +289,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                   </div>
                 </div>
 
-                {/* User Chips */}
+                {/* User Chips - 44pt touch targets */}
                 <div className="flex flex-wrap gap-2">
                   {users.map(user => {
                     const isSelected = item.assignedTo.includes(user.id);
@@ -302,7 +302,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                         onClick={() => toggleAssignment(item.id, user.id)}
                         disabled={!!isLocked}
                         className={`
-                          pl-1 pr-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all touch-manipulation border-2
+                          pl-1.5 pr-3.5 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all touch-manipulation border-2
                           ${isSelected
                             ? 'bg-black text-white border-black scale-105 shadow-md'
                             : 'bg-gray-50 text-gray-500 border-transparent hover:border-gray-200'}
@@ -310,7 +310,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                         `}
                       >
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-black border border-black/10 ${!isHex ? user.color : ''}`}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-black text-black border border-black/10 ${!isHex ? user.color : ''}`}
                           style={isHex ? { backgroundColor: user.color } : {}}
                         >
                           {isSelected ? (
@@ -322,13 +322,13 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                           )}
                         </div>
                         {user.name}
-                        {isLocked && <Lock size={10} className="ml-1 opacity-50" />}
+                        {isLocked && <Lock size={12} className="ml-1 opacity-50" />}
                       </button>
                     );
                   })}
                 </div>
                 {isUnassigned && (
-                  <div className="mt-3 text-xs text-red-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                  <div className="mt-3 text-[11px] text-red-500 font-bold uppercase tracking-widest flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
                     Unassigned
                   </div>
@@ -338,23 +338,23 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
           })}
         </div>
 
-        {/* Mobile Total Breakdown Overlay */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-3 pointer-events-none">
+        {/* Mobile Total Breakdown Overlay - with safe area */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pointer-events-none">
           <div className="pointer-events-auto bg-white rounded-[2rem] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.15)] border border-black/5 overflow-hidden transition-all duration-500 ease-spring"
             style={{
-              maxHeight: mobileTab === 'total' ? '70vh' : '88px',
+              maxHeight: mobileTab === 'total' ? '60vh' : '88px',
             }}
           >
             <button
               onClick={() => setMobileTab(mobileTab === 'items' ? 'total' : 'items')}
-              className="w-full p-4 flex items-center justify-between bg-white active:bg-gray-50 transition-colors"
+              className="w-full p-4 min-h-[56px] flex items-center justify-between bg-white active:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="bg-black text-white w-11 h-11 rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-lg">Σ</span>
                 </div>
                 <div className="text-left">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <div className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
                     {isLiveMode ? 'Your Total' : 'Grand Total'}
                   </div>
                   <div className="text-xl font-black text-black">
@@ -365,7 +365,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                   </div>
                 </div>
               </div>
-              <div className={`w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
+              <div className={`w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
                 <ArrowRight className="-rotate-90" size={18} />
               </div>
             </button>
@@ -397,9 +397,9 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                             <div>
                               <div className="font-bold text-black text-base flex items-center gap-1.5">
                                 {user.name}
-                                {isMe && <span className="text-[9px] bg-black text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
+                                {isMe && <span className="text-[11px] bg-black text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
                               </div>
-                              <div className="text-[10px] text-gray-500 font-bold">
+                              <div className="text-[11px] text-gray-500 font-bold">
                                 {items.filter(i => i.assignedTo.includes(user.id)).length} items
                               </div>
                             </div>
@@ -493,7 +493,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                     <div>
                       <div className="font-bold text-black text-xl flex items-center gap-2">
                         {user.name}
-                        {isMe && <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
+                        {isMe && <span className="text-[11px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-black">Me</span>}
                       </div>
                       <div className="text-xs text-gray-500 font-bold mt-0.5">
                         {items.filter(i => i.assignedTo.includes(user.id)).length} items
