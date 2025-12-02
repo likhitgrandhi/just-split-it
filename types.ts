@@ -11,7 +11,6 @@ export interface User {
   id: string;
   name: string;
   color: string;
-  createdBy?: string; // ID of the user who created this user (for manual entry permissions)
 }
 
 export interface SplitResult {

@@ -1,20 +1,8 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ExtractedItem } from '../types';
 
-// Initialize the client lazily to prevent top-level crashes
-let ai: GoogleGenAI | null = null;
-
-const getAiClient = () => {
-  if (!ai) {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.error("Gemini API Key is missing!");
-      throw new Error("Gemini API Key is missing");
-    }
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
-};
+// Initialize the client with the API key from environment variables
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Helper to convert a File object to a Base64 string.
@@ -63,7 +51,7 @@ export const parseReceiptImage = async (base64Data: string, mimeType: string): P
       },
     };
 
-    const response = await getAiClient().models.generateContent({
+    const response = await ai.models.generateContent({
       model: modelId,
       contents: {
         parts: [
