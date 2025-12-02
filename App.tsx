@@ -31,6 +31,7 @@ const generateId = () => {
 };
 
 const AppContent: React.FC = () => {
+  console.log('🚀 AppContent rendering');
   const {
     step, setStep,
     items, setItems,
@@ -49,7 +50,8 @@ const AppContent: React.FC = () => {
     pendingJoinPin,
     startManualSplit,
     clearPendingJoinPin,
-    leaveSplit
+    leaveSplit,
+    cancelSplit
   } = useSplit();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -137,6 +139,13 @@ const AppContent: React.FC = () => {
     await startRoom();
     setIsModeSelectionOpen(false);
     setStep(AppStep.SPLIT);
+  };
+
+  const handleCancelSplit = async () => {
+    console.log('🚫 APP: handleCancelSplit called');
+    await cancelSplit();
+    console.log('🚫 APP: cancelSplit complete, closing modal');
+    setIsModeSelectionOpen(false);
   };
 
   const handleJoinSubmit = async (e: React.FormEvent) => {
@@ -253,12 +262,17 @@ const AppContent: React.FC = () => {
           isCreating={false} // We could track loading state for createSplit if needed
           pin={pin}
           onProceed={handleLiveProceed}
-          onClose={() => {
-            // If a PIN was created but user cancels, clean up the split
+          onClose={async () => {
+            console.log('🚫 APP: onClose called, pin=', pin);
+            // If a PIN was created but user cancels, clean up the split properly
             if (pin) {
-              handleReset();
+              console.log('🚫 APP: PIN exists, calling handleCancelSplit');
+              await handleCancelSplit();
+            } else {
+              console.log('🚫 APP: No PIN, just closing modal');
+              setIsModeSelectionOpen(false);
             }
-            setIsModeSelectionOpen(false);
+            console.log('🚫 APP: onClose complete');
           }}
         />
       )}
