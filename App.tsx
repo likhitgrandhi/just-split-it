@@ -86,6 +86,11 @@ const AppContent: React.FC = () => {
       const base64Data = await fileToGenerativePart(file);
       const extractedItems = await parseReceiptImage(base64Data, file.type);
 
+      if (extractedItems.length === 0) {
+        showError("Looks like this ain't a bill");
+        return;
+      }
+
       const formattedItems: ReceiptItem[] = extractedItems.map(item => ({
         id: generateId(),
         name: item.name,

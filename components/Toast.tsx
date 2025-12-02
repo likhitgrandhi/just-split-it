@@ -11,10 +11,17 @@ interface ToastProps {
 }
 
 export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration = 3000 }) => {
+    const [isExiting, setIsExiting] = React.useState(false);
+
+    const handleClose = React.useCallback(() => {
+        setIsExiting(true);
+        setTimeout(onClose, 500); // Wait for animation to finish
+    }, [onClose]);
+
     useEffect(() => {
-        const timer = setTimeout(onClose, duration);
+        const timer = setTimeout(handleClose, duration);
         return () => clearTimeout(timer);
-    }, [duration, onClose]);
+    }, [duration, handleClose]);
 
     const styles = {
         success: 'bg-green-500/90 border-green-400',
@@ -29,11 +36,11 @@ export const Toast: React.FC<ToastProps> = ({ message, type, onClose, duration =
     };
 
     return (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 ${styles[type]} text-white px-4 py-3 rounded-xl border shadow-lg animate-fade-in max-w-sm`}>
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 ${styles[type]} text-white px-6 py-4 rounded-2xl border shadow-2xl max-w-sm w-full mx-4 md:w-auto md:min-w-[300px] ${isExiting ? 'animate-slide-down' : 'animate-slide-up'}`}>
             {icons[type]}
-            <span className="flex-1 text-sm font-medium">{message}</span>
-            <button onClick={onClose} className="hover:bg-white/20 rounded-full p-1 transition-colors">
-                <X size={16} />
+            <span className="flex-1 text-base font-medium">{message}</span>
+            <button onClick={handleClose} className="hover:bg-white/20 rounded-full p-1 transition-colors">
+                <X size={18} />
             </button>
         </div>
     );
