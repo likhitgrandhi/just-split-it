@@ -137,7 +137,9 @@ const AppContent: React.FC = () => {
   };
 
   const handleCancelSplit = async () => {
+    console.log('🚫 APP: handleCancelSplit called');
     await cancelSplit();
+    console.log('🚫 APP: cancelSplit complete, closing modal');
     setIsModeSelectionOpen(false);
   };
 
@@ -256,12 +258,16 @@ const AppContent: React.FC = () => {
           pin={pin}
           onProceed={handleLiveProceed}
           onClose={async () => {
+            console.log('🚫 APP: onClose called, pin=', pin);
             // If a PIN was created but user cancels, clean up the split properly
             if (pin) {
+              console.log('🚫 APP: PIN exists, calling handleCancelSplit');
               await handleCancelSplit();
             } else {
+              console.log('🚫 APP: No PIN, just closing modal');
               setIsModeSelectionOpen(false);
             }
+            console.log('🚫 APP: onClose complete');
           }}
         />
       )}

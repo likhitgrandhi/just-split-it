@@ -39,14 +39,9 @@ interface SplitContextType {
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
 
 export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [items, setItems] = useState<ReceiptItem[]>([
-        { id: '1', name: 'Pizza', price: 20, quantity: 1, assignedTo: [] },
-        { id: '2', name: 'Burger', price: 15, quantity: 1, assignedTo: [] }
-    ]);
-    const [users, setUsers] = useState<User[]>([
-        { id: 'u1', name: 'Me', color: 'bg-blue-500' }
-    ]);
-    const [step, setStep] = useState<AppStep>(AppStep.SPLIT);
+    const [items, setItems] = useState<ReceiptItem[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [step, setStep] = useState<AppStep>(AppStep.UPLOAD);
     const [pin, setPin] = useState<string | null>(null);
     const [isHost, setIsHost] = useState(false);
     const [splitStatus, setSplitStatus] = useState<'waiting' | 'active' | 'locked' | 'ended'>('waiting');
@@ -866,6 +861,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const reset = () => {
+        console.log('🔄 RESET: Starting reset, clearing localStorage', { storageKey: STORAGE_KEY });
         setItems([]);
         setUsers([]);
         setStep(AppStep.UPLOAD);
@@ -875,32 +871,49 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentUser(null);
         setError(null);
         localStorage.removeItem(STORAGE_KEY);
+        console.log('🔄 RESET: localStorage cleared, checking:', localStorage.getItem(STORAGE_KEY));
 
         // Clean up URL params
         const url = new URL(window.location.href);
         url.searchParams.delete('join');
         window.history.replaceState({}, '', url.toString());
+        console.log('🔄 RESET: Complete');
     };
 
     // Cancel split - for when user creates a room but clicks "Cancel & Go Back"
     const cancelSplit = async () => {
-        if (pin && isHost) {
-            console.log('🚫 CANCEL: Ending split before going back', { pin });
+        console.log('🚫 CONTEXT: cancelSplit called', { pin, isHost });
+        const pinToEnd = pin;
+        const wasHost = isHost;
+
+        // CRITICAL: Unsubscribe FIRST to prevent subscription from re-saving data
+        if (subscriptionRef.current) {
+            console.log('🚫 CONTEXT: Unsubscribing from split');
+            await subscriptionRef.current.unsubscribe();
+            subscriptionRef.current = null;
+        }
+
+        // Then reset local state and clear localStorage
+        // This must happen before async database operation to prevent race condition
+        console.log('🚫 CONTEXT: Calling reset()');
+        reset();
+
+        // Then end the split in the database (async, in background)
+        if (pinToEnd && wasHost) {
+            console.log('🚫 CANCEL: Ending split in database', { pin: pinToEnd });
             try {
-                // End the split in the database so it can't be rejoined
-                await updateSplitData(pin, {
-                    items,
-                    users,
+                await updateSplitData(pinToEnd, {
+                    items: [],
+                    users: [],
                     hostId: '',
                     status: 'ended'
                 });
+                console.log('✅ CANCEL: Split ended successfully');
             } catch (err) {
-                console.error('Failed to end split during cancel', err);
+                console.error('❌ CANCEL: Failed to end split', err);
+                // Not critical - localStorage already cleared
             }
         }
-
-        // Reset all local state
-        reset();
     };
 
     const leaveSplit = async () => {
@@ -999,7 +1012,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         const updatedItems = items.map(item => {
             const newAssignedTo = [...item.assignedTo, ...newUserIds];
-            console.log(`  ➕ Adding manual users to item: ${item.name}`, {
+            console.log(`  ➕ Adding manual users to item: ${item.name} `, {
                 previousAssignedTo: item.assignedTo,
                 newAssignedTo
             });
