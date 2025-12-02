@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge, Loader2, UserPlus } from 'lucide-react';
+import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge, Loader2 } from 'lucide-react';
 import { useSplit } from '../contexts/SplitContext';
-import { AddItemModal } from './AddItemModal';
-import { AddUserModal } from './AddUserModal';
 
 interface SplitterProps {
   onReset: () => void;
@@ -39,28 +37,11 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
     leaveSplit,
     isLiveMode,
     splitItem,
-    mergeItems,
-    addItems,
-    addUsers
+    mergeItems
   } = useSplit();
 
-  const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-
   const toggleAssignment = (itemId: string, userId: string) => {
-    const targetUser = users.find(u => u.id === userId);
-    const isCreator = targetUser?.createdBy === currentUser?.id;
-
-    console.log('🔒 PERMISSION CHECK:', {
-      currentUserId: currentUser?.id,
-      targetUserId: userId,
-      targetUserCreatedBy: targetUser?.createdBy,
-      isCreator,
-      pin
-    });
-
-    if (pin && currentUser && userId !== currentUser.id && !isCreator) {
-      console.warn('🚫 PERMISSION DENIED');
+    if (pin && currentUser && userId !== currentUser.id) {
       return;
     }
 
@@ -174,12 +155,6 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
             )}
 
             <button
-              onClick={() => setShowAddItemModal(true)}
-              className="p-2.5 rounded-full bg-white text-black border border-black/5 active:bg-gray-50 transition-all shadow-sm"
-            >
-              <Plus size={18} strokeWidth={2.5} />
-            </button>
-            <button
               onClick={onShare}
               className="w-11 h-11 rounded-full bg-white text-black border border-black/5 active:bg-gray-50 transition-all shadow-sm flex items-center justify-center"
             >
@@ -259,12 +234,6 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
             )}
 
             <button
-              onClick={() => setShowAddItemModal(true)}
-              className="p-3 rounded-full bg-white text-black border-2 border-black/5 hover:bg-gray-50 transition-all shadow-sm hover:shadow-md"
-            >
-              <Plus size={20} strokeWidth={2.5} />
-            </button>
-            <button
               onClick={onShare}
               className="p-3 rounded-full bg-white text-black border-2 border-black/5 hover:bg-gray-50 transition-all shadow-sm hover:shadow-md"
             >
@@ -324,9 +293,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                 <div className="flex flex-wrap gap-2">
                   {users.map(user => {
                     const isSelected = item.assignedTo.includes(user.id);
-                    // Only lock if in live mode AND it's not current user AND current user is NOT the creator
-                    const isCreator = user.createdBy === currentUser?.id;
-                    const isLocked = pin && currentUser && user.id !== currentUser.id && !isCreator;
+                    const isLocked = pin && currentUser && user.id !== currentUser.id;
                     const isHex = user.color.startsWith('#');
 
                     return (
@@ -378,7 +345,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               maxHeight: mobileTab === 'total' ? '60vh' : '88px',
             }}
           >
-            <div
+            <button
               onClick={() => setMobileTab(mobileTab === 'items' ? 'total' : 'items')}
               className="w-full p-4 min-h-[56px] flex items-center justify-between bg-white active:bg-gray-50 transition-colors"
             >
@@ -401,7 +368,7 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               <div className={`w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
                 <ArrowRight className="-rotate-90" size={18} />
               </div>
-            </div>
+            </button>
 
             <div className="px-4 pb-4 overflow-y-auto max-h-[calc(70vh-88px)]">
               {mobileTab === 'total' && (
@@ -495,12 +462,6 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                 +{users.length - 3}
               </div>
             )}
-            <button
-              onClick={() => setShowAddUserModal(true)}
-              className="w-10 h-10 rounded-full border-4 border-white bg-nike-volt flex items-center justify-center text-black shadow-sm hover:scale-105 transition-transform"
-            >
-              <UserPlus size={16} />
-            </button>
           </div>
         </div>
 
@@ -578,21 +539,6 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
           </div>
         </div>
       </div>
-
-      {showAddItemModal && (
-        <AddItemModal
-          onClose={() => setShowAddItemModal(false)}
-          onAdd={addItems}
-          currency={currency}
-        />
-      )}
-
-      {showAddUserModal && (
-        <AddUserModal
-          onClose={() => setShowAddUserModal(false)}
-          onAdd={addUsers}
-        />
-      )}
     </div>
   );
 };

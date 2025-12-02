@@ -31,9 +31,6 @@ interface SplitContextType {
     forceEndSplit: () => Promise<void>;
     splitItem: (itemId: string) => void;
     mergeItems: (splitGroupId: string) => void;
-    addItems: (newItems: ReceiptItem[]) => Promise<void>;
-    addUsers: (newUsers: User[]) => Promise<void>;
-    cancelSplit: () => Promise<void>;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -78,20 +75,11 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         subscriptionRef.current = subscribeToSplit(pin, (newData) => {
             // Skip updates if we're currently updating (prevents loops)
             if (isUpdatingRef.current) {
-                console.log('📡 SUBSCRIPTION: Skipped (currently updating)');
                 return;
             }
 
             if (newData && newData.data) {
-                console.log('📡 SUBSCRIPTION: Received update', {
-                    itemCount: newData.data.items?.length,
-                    userCount: newData.data.users?.length,
-                    isUpdating: isUpdatingRef.current
-                });
-
-                // Update items from server
-                // Protection is handled by isUpdatingRef flag set before local updates
-                console.log('📡 SUBSCRIPTION: Updating items from server');
+                // Always update items (simple replacement is fine for items)
                 setItems(newData.data.items || []);
 
                 // Update status if it changed
@@ -289,20 +277,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         try {
-            // Auto-assign all users to all items before creating split
-            const itemsWithAssignments = itemsToSave.map(item => ({
-                ...item,
-                assignedTo: usersToSave.map(u => u.id) // Assign all users to all items by default
-            }));
-
-            console.log('🎯 CREATE SPLIT: Auto-assigning all users to all items', {
-                userCount: usersToSave.length,
-                itemCount: itemsWithAssignments.length,
-                userIds: usersToSave.map(u => u.id)
-            });
-
             await apiCreateSplit(newPin!, {
-                items: itemsWithAssignments,
+                items: itemsToSave,
                 users: usersToSave,
                 hostId,
                 status: 'waiting'
@@ -311,13 +287,12 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setIsHost(true);
             setSplitStatus('waiting');
 
-            // Also update local state with the users and items we saved
+            // Also update local state with the users we saved
             if (overrideUsers) {
                 setUsers(overrideUsers);
             }
             if (overrideItems) {
-                // Use the items with assignments
-                setItems(itemsWithAssignments);
+                setItems(overrideItems);
             }
 
             // Update URL without reloading
@@ -417,33 +392,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     console.log('🔄 REJOIN: Reusing existing user', existingUser);
                     joinUser = existingUser;
                     updatedUsers = latestUsers; // No change to users list
-
-                    // Auto-assign to any items the user is not currently assigned to
-                    const itemsNeedingAssignment = latestItems.filter(
-                        (item: ReceiptItem) => !item.assignedTo.includes(existingUser.id)
-                    );
-
-                    if (itemsNeedingAssignment.length > 0) {
-                        console.log('🔄 REJOIN: Auto-assigning user to new items', {
-                            userId: existingUser.id,
-                            newItemCount: itemsNeedingAssignment.length
-                        });
-                        updatedItems = latestItems.map((item: ReceiptItem) => {
-                            if (!item.assignedTo.includes(existingUser.id)) {
-                                return { ...item, assignedTo: [...item.assignedTo, existingUser.id] };
-                            }
-                            return item;
-                        });
-                    }
-
-                    // If we need to update items, set protection flag before setState
-                    if (itemsNeedingAssignment.length > 0) {
-                        console.log('🔒 REJOIN: Locking subscription updates');
-                        isUpdatingRef.current = true;
-                    }
-
                     setCurrentUser(joinUser);
-                    setItems(updatedItems);
+                    setItems(latestItems);
                     setUsers(updatedUsers);
                     setPin(joinPin);
                     setStep(AppStep.SPLIT);
@@ -456,25 +406,6 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         userColor: joinUser.color,
                         isHost: false
                     }));
-
-                    // If we updated items, sync to server
-                    if (itemsNeedingAssignment.length > 0) {
-                        updateSplitData(joinPin, {
-                            items: updatedItems,
-                            users: updatedUsers,
-                            hostId: data.hostId,
-                            status: data.status || 'waiting'
-                        }).then(() => {
-                            setTimeout(() => {
-                                console.log('🔓 REJOIN: Unlocking subscription updates');
-                                isUpdatingRef.current = false;
-                            }, 5000);
-                        }).catch(err => {
-                            console.error('Failed to sync rejoin assignments', err);
-                            isUpdatingRef.current = false;
-                        });
-                    }
-
                     return;
                 }
             }
@@ -491,33 +422,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 joinUser = existingUserByName;
                 updatedUsers = latestUsers;
 
-                // Auto-assign to any items the user is not currently assigned to
-                const itemsNeedingAssignment = latestItems.filter(
-                    (item: ReceiptItem) => !item.assignedTo.includes(existingUserByName.id)
-                );
-
-                if (itemsNeedingAssignment.length > 0) {
-                    console.log('🔄 REJOIN: Auto-assigning user to new items', {
-                        userId: existingUserByName.id,
-                        newItemCount: itemsNeedingAssignment.length
-                    });
-                    updatedItems = latestItems.map((item: ReceiptItem) => {
-                        if (!item.assignedTo.includes(existingUserByName.id)) {
-                            return { ...item, assignedTo: [...item.assignedTo, existingUserByName.id] };
-                        }
-                        return item;
-                    });
-                }
-
-                // If we need to update items, set protection flag before setState
-                if (itemsNeedingAssignment.length > 0) {
-                    console.log('🔒 REJOIN: Locking subscription updates');
-                    isUpdatingRef.current = true;
-                }
-
-                // Restore state
+                // Don't create new user, just restore state
                 setCurrentUser(joinUser);
-                setItems(updatedItems);
+                setItems(latestItems);
                 setUsers(updatedUsers);
                 setPin(joinPin);
                 setStep(AppStep.SPLIT);
@@ -530,25 +437,6 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     userColor: joinUser.color,
                     isHost: false
                 }));
-
-                // If we updated items, sync to server
-                if (itemsNeedingAssignment.length > 0) {
-                    updateSplitData(joinPin, {
-                        items: updatedItems,
-                        users: updatedUsers,
-                        hostId: data.hostId,
-                        status: data.status || 'waiting'
-                    }).then(() => {
-                        setTimeout(() => {
-                            console.log('🔓 REJOIN: Unlocking subscription updates');
-                            isUpdatingRef.current = false;
-                        }, 5000);
-                    }).catch(err => {
-                        console.error('Failed to sync rejoin assignments', err);
-                        isUpdatingRef.current = false;
-                    });
-                }
-
                 return;
             }
 
@@ -566,57 +454,27 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             updatedUsers = [...latestUsers, newUser];
 
             // Default Assignment: Assign new user to ALL items
-            console.log('🔵 JOIN: Auto-assigning new user to all items', {
-                userId: newUser.id,
-                userName: newUser.name,
-                itemCount: latestItems.length,
-                itemIds: latestItems.map(i => i.id)
-            });
-            updatedItems = latestItems.map((item: ReceiptItem) => {
-                const newAssignedTo = [...(item.assignedTo || []), newUser.id];
-                console.log(`  📌 Assigning user ${newUser.name} to item:`, item.name, '| assignedTo:', newAssignedTo);
-                return {
-                    ...item,
-                    assignedTo: newAssignedTo
-                };
-            });
-
-            console.log('🔵 JOIN: Setting items and users locally', {
-                itemCount: updatedItems.length,
-                userCount: updatedUsers.length,
-                newUserAssignments: updatedItems.map(i => ({
-                    item: i.name,
-                    assignedTo: i.assignedTo,
-                    includesNewUser: i.assignedTo.includes(newUser.id)
-                }))
-            });
-
-            // Set protection flag BEFORE updating state to prevent subscription from overwriting
-            console.log('🔒 JOIN: Locking subscription updates');
-            isUpdatingRef.current = true;
+            updatedItems = latestItems.map((item: ReceiptItem) => ({
+                ...item,
+                assignedTo: [...(item.assignedTo || []), newUser.id]
+            }));
 
             setItems(updatedItems);
             setUsers(updatedUsers);
 
+            isUpdatingRef.current = true;
             try {
-                console.log('🔵 JOIN: Updating Supabase with new user and assignments');
                 await updateSplitData(joinPin, {
                     items: updatedItems,
                     users: updatedUsers,
                     hostId: data.hostId,
                     status: data.status || 'waiting'
                 });
-                console.log('✅ JOIN: Supabase update complete');
-            } catch (err) {
-                console.error('❌ JOIN: Failed to update Supabase', err);
-                throw err;
             } finally {
-                // Allow subscription updates after a LONGER delay to ensure server update has fully propagated
-                // Supabase may need time to process and broadcast the change
+                // Allow subscription updates after a short delay to ensure we don't overwrite our own update
                 setTimeout(() => {
-                    console.log('🔓 JOIN: Unlocking subscription updates after 5s delay');
                     isUpdatingRef.current = false;
-                }, 5000); // Increased to 5000ms to ensure full propagation
+                }, 500);
             }
 
             setPin(joinPin);
@@ -861,7 +719,6 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const reset = () => {
-        console.log('🔄 RESET: Starting reset, clearing localStorage', { storageKey: STORAGE_KEY });
         setItems([]);
         setUsers([]);
         setStep(AppStep.UPLOAD);
@@ -871,49 +728,11 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCurrentUser(null);
         setError(null);
         localStorage.removeItem(STORAGE_KEY);
-        console.log('🔄 RESET: localStorage cleared, checking:', localStorage.getItem(STORAGE_KEY));
 
         // Clean up URL params
         const url = new URL(window.location.href);
         url.searchParams.delete('join');
         window.history.replaceState({}, '', url.toString());
-        console.log('🔄 RESET: Complete');
-    };
-
-    // Cancel split - for when user creates a room but clicks "Cancel & Go Back"
-    const cancelSplit = async () => {
-        console.log('🚫 CONTEXT: cancelSplit called', { pin, isHost });
-        const pinToEnd = pin;
-        const wasHost = isHost;
-
-        // CRITICAL: Unsubscribe FIRST to prevent subscription from re-saving data
-        if (subscriptionRef.current) {
-            console.log('🚫 CONTEXT: Unsubscribing from split');
-            await subscriptionRef.current.unsubscribe();
-            subscriptionRef.current = null;
-        }
-
-        // Then reset local state and clear localStorage
-        // This must happen before async database operation to prevent race condition
-        console.log('🚫 CONTEXT: Calling reset()');
-        reset();
-
-        // Then end the split in the database (async, in background)
-        if (pinToEnd && wasHost) {
-            console.log('🚫 CANCEL: Ending split in database', { pin: pinToEnd });
-            try {
-                await updateSplitData(pinToEnd, {
-                    items: [],
-                    users: [],
-                    hostId: '',
-                    status: 'ended'
-                });
-                console.log('✅ CANCEL: Split ended successfully');
-            } catch (err) {
-                console.error('❌ CANCEL: Failed to end split', err);
-                // Not critical - localStorage already cleared
-            }
-        }
     };
 
     const leaveSplit = async () => {
@@ -964,103 +783,6 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPendingJoinPin(null);
     };
 
-    // Add multiple items manually
-    const addItems = async (newItems: ReceiptItem[]) => {
-        if (newItems.length === 0) return;
-
-        const updatedItems = [...items, ...newItems];
-        setItems(updatedItems);
-
-        if (pin) {
-            isUpdatingRef.current = true;
-            try {
-                await updateSplitData(pin, {
-                    items: updatedItems,
-                    users,
-                    hostId: '',
-                    status: splitStatus
-                });
-            } catch (err) {
-                console.error("Failed to sync added items", err);
-            } finally {
-                setTimeout(() => {
-                    isUpdatingRef.current = false;
-                }, 100);
-            }
-        }
-    };
-
-    // Add multiple users manually
-    const addUsers = async (newUsers: User[]) => {
-        if (newUsers.length === 0) return;
-
-        // Check for duplicates and add createdBy field
-        const uniqueNewUsers = newUsers.filter(newUser =>
-            !users.some(existingUser => existingUser.name.toLowerCase() === newUser.name.toLowerCase())
-        ).map(u => ({
-            ...u,
-            createdBy: currentUser?.id || '' // Track who created this manual user
-        }));
-
-        if (uniqueNewUsers.length === 0) return;
-
-        const updatedUsers = [...users, ...uniqueNewUsers];
-
-        // Auto-assign new users to all items
-        const newUserIds = uniqueNewUsers.map(u => u.id);
-        console.log('➕ AUTO-ASSIGN: Assigning new manual users to items', { newUserIds, itemCount: items.length });
-
-        const updatedItems = items.map(item => {
-            const newAssignedTo = [...item.assignedTo, ...newUserIds];
-            console.log(`  ➕ Adding manual users to item: ${item.name} `, {
-                previousAssignedTo: item.assignedTo,
-                newAssignedTo
-            });
-            return {
-                ...item,
-                assignedTo: newAssignedTo
-            };
-        });
-
-        console.log('➕ AUTO-ASSIGN: Updated items', {
-            itemCount: updatedItems.length,
-            assignments: updatedItems.map(i => ({
-                item: i.name,
-                assignedTo: i.assignedTo,
-                assignedCount: i.assignedTo.length
-            }))
-        });
-
-        // Set protection flag BEFORE updating state
-        if (pin) {
-            console.log('🔒 MANUAL USER: Locking subscription updates');
-            isUpdatingRef.current = true;
-        }
-
-        setUsers(updatedUsers);
-        setItems(updatedItems);
-
-        if (pin) {
-            try {
-                console.log('➕ MANUAL USER: Updating Supabase');
-                await updateSplitData(pin, {
-                    items: updatedItems,
-                    users: updatedUsers,
-                    hostId: '',
-                    status: splitStatus
-                });
-                console.log('✅ MANUAL USER: Supabase update complete');
-            } catch (err) {
-                console.error("❌ MANUAL USER: Failed to sync added users", err);
-            } finally {
-                setTimeout(() => {
-                    console.log('🔓 MANUAL USER: Unlocking subscription updates');
-                    isUpdatingRef.current = false;
-                }, 5000); // Increased to match other timeouts
-            }
-        }
-    };
-
     return (
         <SplitContext.Provider value={{
             items, setItems,
@@ -1083,10 +805,7 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isLiveMode,
             forceEndSplit,
             splitItem,
-            mergeItems,
-            addItems,
-            addUsers,
-            cancelSplit
+            mergeItems
         }}>
             {children}
         </SplitContext.Provider>
