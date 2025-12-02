@@ -31,6 +31,7 @@ const generateId = () => {
 };
 
 const AppContent: React.FC = () => {
+  console.log('🚀 AppContent rendering');
   const {
     step, setStep,
     items, setItems,
@@ -49,7 +50,8 @@ const AppContent: React.FC = () => {
     pendingJoinPin,
     startManualSplit,
     clearPendingJoinPin,
-    leaveSplit
+    leaveSplit,
+    cancelSplit
   } = useSplit();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -132,6 +134,11 @@ const AppContent: React.FC = () => {
     await startRoom();
     setIsModeSelectionOpen(false);
     setStep(AppStep.SPLIT);
+  };
+
+  const handleCancelSplit = async () => {
+    await cancelSplit();
+    setIsModeSelectionOpen(false);
   };
 
   const handleJoinSubmit = async (e: React.FormEvent) => {
@@ -248,12 +255,13 @@ const AppContent: React.FC = () => {
           isCreating={false} // We could track loading state for createSplit if needed
           pin={pin}
           onProceed={handleLiveProceed}
-          onClose={() => {
-            // If a PIN was created but user cancels, clean up the split
+          onClose={async () => {
+            // If a PIN was created but user cancels, clean up the split properly
             if (pin) {
-              handleReset();
+              await handleCancelSplit();
+            } else {
+              setIsModeSelectionOpen(false);
             }
-            setIsModeSelectionOpen(false);
           }}
         />
       )}
