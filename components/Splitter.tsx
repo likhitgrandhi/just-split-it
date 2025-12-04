@@ -372,20 +372,20 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                   </div>
                 </div>
               </div>
-              <div className={`w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
-                <ArrowRight className="-rotate-90" size={18} />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAddUserModal(true);
+                  }}
+                  className="w-11 h-11 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center transition-colors"
+                >
+                  <Plus size={20} />
+                </button>
+                <div className={`w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center transition-transform duration-300 ${mobileTab === 'total' ? 'rotate-180' : ''}`}>
+                  <ArrowRight className="-rotate-90" size={18} />
+                </div>
               </div>
-            </button>
-
-            {/* Mobile Add User Button (in drawer header) */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowAddUserModal(true);
-              }}
-              className="absolute top-4 right-16 w-11 h-11 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center transition-colors"
-            >
-              <Plus size={20} />
             </button>
 
             <div className="px-4 pb-4 overflow-y-auto max-h-[calc(70vh-88px)]">

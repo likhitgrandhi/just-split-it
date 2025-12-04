@@ -783,11 +783,18 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const updatedUsers = [...users, newUser];
         setUsers(updatedUsers);
 
+        // Auto-assign new user to all items
+        const updatedItems = items.map(item => ({
+            ...item,
+            assignedTo: [...(item.assignedTo || []), newUser.id]
+        }));
+        setItems(updatedItems);
+
         if (pin) {
             isUpdatingRef.current = true;
             try {
                 await updateSplitData(pin, {
-                    items,
+                    items: updatedItems,
                     users: updatedUsers,
                     hostId: '', // We don't need to change hostId
                     status: splitStatus
