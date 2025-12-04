@@ -251,7 +251,16 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Use override values if provided (handles async state update race condition)
         const usersToSave = overrideUsers || users;
-        const itemsToSave = overrideItems || items;
+        let itemsToSave = overrideItems || items;
+
+        // Auto-assign host (first user) to all items
+        const hostUser = usersToSave[0];
+        if (hostUser) {
+            itemsToSave = itemsToSave.map(item => ({
+                ...item,
+                assignedTo: [...(item.assignedTo || []), hostUser.id]
+            }));
+        }
 
         // Generate unique PIN with collision check
         let newPin: string;
@@ -288,13 +297,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setIsHost(true);
             setSplitStatus('waiting');
 
-            // Also update local state with the users we saved
-            if (overrideUsers) {
-                setUsers(overrideUsers);
-            }
-            if (overrideItems) {
-                setItems(overrideItems);
-            }
+            // Update local state with the data we saved (includes auto-assignments)
+            setUsers(usersToSave);
+            setItems(itemsToSave);
 
             // Update URL without reloading
             const url = new URL(window.location.href);
