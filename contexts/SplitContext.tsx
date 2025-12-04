@@ -102,27 +102,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     }
                 }
 
-                // For users, we need to merge intelligently to avoid race conditions
-                // We merge by ID: keep all users from the server, but preserve our currentUser if it exists
-                setUsers(prevUsers => {
-                    const serverUsers = newData.data.users || [];
-
-                    // Create a map of server users by ID for quick lookup
-                    const serverUserMap = new Map(serverUsers.map((u: User) => [u.id, u]));
-
-                    // Start with all server users
-                    const mergedUsers = [...serverUsers];
-
-                    // If we have local users that aren't on the server yet, keep them
-                    // (This handles the brief moment between local update and server confirmation)
-                    prevUsers.forEach(localUser => {
-                        if (!serverUserMap.has(localUser.id)) {
-                            mergedUsers.push(localUser);
-                        }
-                    });
-
-                    return mergedUsers;
-                });
+                // Update users directly from server state
+                // We trust the server state as the source of truth
+                setUsers(newData.data.users || []);
             }
         });
 
