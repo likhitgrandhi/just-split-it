@@ -43,8 +43,18 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
   } = useSplit();
 
   const toggleAssignment = (itemId: string, userId: string) => {
-    if (pin && currentUser && userId !== currentUser.id) {
-      return;
+    // Permission check:
+    // 1. Allow if modifying self
+    // 2. Allow if modifying a user created by self (manual user)
+    // 3. Block otherwise
+    if (pin && currentUser) {
+      const targetUser = users.find(u => u.id === userId);
+      const isCreator = targetUser?.createdBy === currentUser.id;
+      const isSelf = userId === currentUser.id;
+
+      if (!isSelf && !isCreator) {
+        return;
+      }
     }
 
     const item = items.find(i => i.id === itemId);
@@ -300,14 +310,17 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                 <div className="flex flex-wrap gap-2">
                   {users.map(user => {
                     const isSelected = item.assignedTo.includes(user.id);
-                    const isLocked = pin && currentUser && user.id !== currentUser.id;
+                    const isCreator = user.createdBy === currentUser?.id;
+                    const isSelf = user.id === currentUser?.id;
+                    const canToggle = !pin || !currentUser || isSelf || isCreator;
+                    const isLocked = !canToggle;
                     const isHex = user.color.startsWith('#');
 
                     return (
                       <button
                         key={user.id}
                         onClick={() => toggleAssignment(item.id, user.id)}
-                        disabled={!!isLocked}
+                        disabled={isLocked}
                         className={`
                           pl-1.5 pr-3.5 py-2 min-h-[44px] rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-2 transition-all touch-manipulation border-2
                           ${isSelected

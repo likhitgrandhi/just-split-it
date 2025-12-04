@@ -777,7 +777,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const newUser: User = {
             id: crypto.randomUUID(),
             name,
-            color: randomColor
+            color: randomColor,
+            createdBy: currentUser?.id // Track who created this user
         };
 
         const updatedUsers = [...users, newUser];
