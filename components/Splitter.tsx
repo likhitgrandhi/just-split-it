@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Share2, Lock, Check, Plus, ArrowRight, X, Scissors, Merge, Loader2 } from 'lucide-react';
 import { useSplit } from '../contexts/SplitContext';
+import { AddUserModal } from './AddUserModal';
 
 interface SplitterProps {
   onReset: () => void;
@@ -37,7 +38,8 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
     leaveSplit,
     isLiveMode,
     splitItem,
-    mergeItems
+    mergeItems,
+    addUser
   } = useSplit();
 
   const toggleAssignment = (itemId: string, userId: string) => {
@@ -75,6 +77,11 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
 
   const [mobileTab, setMobileTab] = useState<'items' | 'total'>('items');
   const [isEnding, setIsEnding] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+
+  const handleAddUser = async (name: string) => {
+    await addUser(name);
+  };
 
   const handleEndSplit = async () => {
     if (confirm('Are you sure you want to end this split? This cannot be undone.')) {
@@ -370,6 +377,17 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
               </div>
             </button>
 
+            {/* Mobile Add User Button (in drawer header) */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAddUserModal(true);
+              }}
+              className="absolute top-4 right-16 w-11 h-11 rounded-full bg-gray-100 active:bg-gray-200 flex items-center justify-center transition-colors"
+            >
+              <Plus size={20} />
+            </button>
+
             <div className="px-4 pb-4 overflow-y-auto max-h-[calc(70vh-88px)]">
               {mobileTab === 'total' && (
                 <div className="space-y-2 pt-1">
@@ -462,6 +480,15 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                 +{users.length - 3}
               </div>
             )}
+
+            {/* Desktop Add User Button */}
+            <button
+              onClick={() => setShowAddUserModal(true)}
+              className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors shadow-sm"
+              title="Add User"
+            >
+              <Plus size={16} strokeWidth={3} />
+            </button>
           </div>
         </div>
 
@@ -539,6 +566,14 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
           </div>
         </div>
       </div>
+
+      {showAddUserModal && (
+        <AddUserModal
+          users={users}
+          onAdd={handleAddUser}
+          onClose={() => setShowAddUserModal(false)}
+        />
+      )}
     </div>
   );
 };

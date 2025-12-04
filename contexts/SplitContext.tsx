@@ -31,6 +31,7 @@ interface SplitContextType {
     forceEndSplit: () => Promise<void>;
     splitItem: (itemId: string) => void;
     mergeItems: (splitGroupId: string) => void;
+    addUser: (name: string) => Promise<void>;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -771,6 +772,37 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         reset();
     };
 
+    const addUser = async (name: string) => {
+        const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        const newUser: User = {
+            id: crypto.randomUUID(),
+            name,
+            color: randomColor
+        };
+
+        const updatedUsers = [...users, newUser];
+        setUsers(updatedUsers);
+
+        if (pin) {
+            isUpdatingRef.current = true;
+            try {
+                await updateSplitData(pin, {
+                    items,
+                    users: updatedUsers,
+                    hostId: '', // We don't need to change hostId
+                    status: splitStatus
+                });
+            } catch (err: any) {
+                console.error('Failed to add user', err);
+                setError(err.message);
+            } finally {
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
+            }
+        }
+    };
+
     // Determine if we're in live mode (has PIN) vs manual mode
     const isLiveMode = pin !== null;
 
@@ -805,7 +837,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isLiveMode,
             forceEndSplit,
             splitItem,
-            mergeItems
+            mergeItems,
+            addUser
         }}>
             {children}
         </SplitContext.Provider>
