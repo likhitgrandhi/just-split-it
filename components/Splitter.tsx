@@ -54,7 +54,16 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
       const isCreator = targetUser?.createdBy === currentUser.id;
       const isSelf = userId === currentUser.id;
 
-      if (!isSelf && !isCreator) {
+      // Check if the creator is still in the split
+      const creatorExists = users.some(u => u.id === targetUser?.createdBy);
+
+      // Allow if:
+      // 1. Modifying self
+      // 2. Modifying a user created by self
+      // 3. I am Host AND the creator of this manual user has left
+      const canModify = isSelf || isCreator || (isHost && !creatorExists && targetUser?.createdBy);
+
+      if (!canModify) {
         return;
       }
     }
@@ -333,7 +342,11 @@ export const Splitter: React.FC<SplitterProps> = ({ onReset, onShare, currency, 
                     const isSelected = item.assignedTo.includes(user.id);
                     const isCreator = user.createdBy === currentUser?.id;
                     const isSelf = user.id === currentUser?.id;
-                    const canToggle = !pin || !currentUser || isSelf || isCreator;
+
+                    // Check if creator exists
+                    const creatorExists = users.some(u => u.id === user.createdBy);
+
+                    const canToggle = !pin || !currentUser || isSelf || isCreator || (isHost && !creatorExists && user.createdBy);
                     const isLocked = !canToggle;
                     const isHex = user.color.startsWith('#');
 
