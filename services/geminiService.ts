@@ -1,8 +1,4 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { ExtractedItem } from '../types';
-
-// Initialize the client with the API key from environment variables
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Helper to convert a File object to a Base64 string.
@@ -22,67 +18,38 @@ export const fileToGenerativePart = async (file: File): Promise<string> => {
 };
 
 /**
- * Parses a receipt image using Gemini 2.5 Flash to extract items and prices.
+ * Parses a receipt image using our secure backend API endpoint.
+ * The API key is kept secure on the server side.
  */
 export const parseReceiptImage = async (base64Data: string, mimeType: string): Promise<ExtractedItem[]> => {
   try {
-    const modelId = 'gemini-2.5-flash-lite-preview-09-2025';
-
-    const responseSchema: Schema = {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          name: {
-            type: Type.STRING,
-            description: "The name of the item on the bill.",
-          },
-          price: {
-            type: Type.NUMBER,
-            description: "The TOTAL price of the item (quantity * unit price). Do not include currency symbols.",
-          },
-          quantity: {
-            type: Type.NUMBER,
-            description: "The quantity of this item. Default to 1 if not specified on the receipt.",
-          },
-        },
-        required: ["name", "price", "quantity"],
-        propertyOrdering: ["name", "price", "quantity"]
+    // Call our backend API endpoint instead of Gemini directly
+    const response = await fetch('/api/parse-receipt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    };
-
-    const response = await ai.models.generateContent({
-      model: modelId,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data,
-            },
-          },
-          {
-            text: "Analyze this receipt. Extract all line items with their prices and quantities. For each item: 1) Extract the quantity (default to 1 if not shown), 2) Extract the TOTAL price (quantity * unit price), NOT the unit price. Ignore subtotal, tax, and total lines unless they are specific service charges. Return a JSON array.",
-          },
-        ],
-      },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: responseSchema,
-        temperature: 0.1, // Low temperature for factual extraction
-      },
+      body: JSON.stringify({
+        base64Data,
+        mimeType,
+      }),
     });
 
-    const jsonText = response.text;
-    if (!jsonText) {
-      throw new Error("No data returned from Gemini.");
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
-    const data = JSON.parse(jsonText) as ExtractedItem[];
-    return data;
+    const data = await response.json();
+
+    if (!data.items || !Array.isArray(data.items)) {
+      throw new Error("Invalid response format from API");
+    }
+
+    return data.items as ExtractedItem[];
 
   } catch (error) {
-    console.error("Error parsing receipt with Gemini:", error);
+    console.error("Error parsing receipt:", error);
     throw error;
   }
 };

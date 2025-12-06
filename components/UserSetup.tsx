@@ -23,6 +23,7 @@ const generateId = () => {
 
 export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinue, onClose }) => {
   const [nameInput, setNameInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile viewport
@@ -38,6 +39,15 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
 
     const names = nameInput.split(',').map(n => n.trim()).filter(n => n.length > 0);
 
+    // Check for duplicates
+    const existingNames = new Set(users.map(u => u.name.toLowerCase()));
+    const duplicates = names.filter(name => existingNames.has(name.toLowerCase()));
+
+    if (duplicates.length > 0) {
+      setError(`User${duplicates.length > 1 ? 's' : ''} already exist${duplicates.length === 1 ? 's' : ''}: ${duplicates.join(', ')}`);
+      return;
+    }
+
     const newUsers: User[] = names.map(name => ({
       id: generateId(),
       name,
@@ -46,6 +56,7 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
 
     setUsers(prev => [...prev, ...newUsers]);
     setNameInput('');
+    setError(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -89,7 +100,10 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
             <input
               type="text"
               value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
+              onChange={(e) => {
+                setNameInput(e.target.value);
+                if (error) setError(null);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="E.g. Mike, Sarah, John"
               className="w-full bg-gray-50 border-2 border-transparent focus:border-black/10 rounded-2xl p-5 pr-16 text-black placeholder:text-black/20 text-lg font-bold focus:outline-none transition-all"
@@ -103,6 +117,15 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
               <Plus size={22} strokeWidth={3} />
             </button>
           </div>
+
+          {error && (
+            <div className="mb-4 -mt-4 px-1">
+              <p className="text-red-500 text-sm font-bold animate-fade-in flex items-center gap-1">
+                <span className="inline-block w-1 h-1 bg-red-500 rounded-full"></span>
+                {error}
+              </p>
+            </div>
+          )}
 
           {/* Users List */}
           <div className="flex-1 overflow-y-auto no-scrollbar min-h-[120px] -mx-2 px-2">
@@ -174,7 +197,10 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
           <input
             type="text"
             value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
+            onChange={(e) => {
+              setNameInput(e.target.value);
+              if (error) setError(null);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="E.g. Mike, Sarah, John"
             className="w-full bg-white border-2 border-transparent focus:border-black/10 rounded-[2rem] p-6 pr-16 text-black placeholder:text-black/30 text-xl font-bold focus:outline-none shadow-sm transition-all"
