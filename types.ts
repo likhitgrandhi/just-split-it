@@ -11,6 +11,7 @@ export interface User {
   id: string;
   name: string;
   color: string;
+  createdBy?: string; // ID of the user who created this manual user
 }
 
 export interface SplitResult {

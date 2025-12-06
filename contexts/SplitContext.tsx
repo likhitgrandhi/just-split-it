@@ -31,6 +31,8 @@ interface SplitContextType {
     forceEndSplit: () => Promise<void>;
     splitItem: (itemId: string) => void;
     mergeItems: (splitGroupId: string) => void;
+    addUser: (name: string) => Promise<void>;
+    addItem: (name: string, price: number) => Promise<void>;
 }
 
 const SplitContext = createContext<SplitContextType | undefined>(undefined);
@@ -102,8 +104,8 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     }
                 }
 
-                // Update users directly from server state
-                // We trust the server state as the source of truth
+                // For users, we trust the server state completely
+                // This ensures that if a user leaves (is removed from server), they are removed locally too
                 setUsers(newData.data.users || []);
             }
         });
@@ -232,7 +234,16 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         // Use override values if provided (handles async state update race condition)
         const usersToSave = overrideUsers || users;
-        const itemsToSave = overrideItems || items;
+        let itemsToSave = overrideItems || items;
+
+        // Auto-assign host (first user) to all items
+        const hostUser = usersToSave[0];
+        if (hostUser) {
+            itemsToSave = itemsToSave.map(item => ({
+                ...item,
+                assignedTo: [...(item.assignedTo || []), hostUser.id]
+            }));
+        }
 
         // Generate unique PIN with collision check
         let newPin: string;
@@ -269,13 +280,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setIsHost(true);
             setSplitStatus('waiting');
 
-            // Also update local state with the users we saved
-            if (overrideUsers) {
-                setUsers(overrideUsers);
-            }
-            if (overrideItems) {
-                setItems(overrideItems);
-            }
+            // Update local state with the data we saved (includes auto-assignments)
+            setUsers(usersToSave);
+            setItems(itemsToSave);
 
             // Update URL without reloading
             const url = new URL(window.location.href);
@@ -753,6 +760,77 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         reset();
     };
 
+    const addUser = async (name: string) => {
+        const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        const newUser: User = {
+            id: crypto.randomUUID(),
+            name,
+            color: randomColor,
+            createdBy: currentUser?.id // Track who created this user
+        };
+
+        const updatedUsers = [...users, newUser];
+        setUsers(updatedUsers);
+
+        // Auto-assign new user to all items
+        const updatedItems = items.map(item => ({
+            ...item,
+            assignedTo: [...(item.assignedTo || []), newUser.id]
+        }));
+        setItems(updatedItems);
+
+        if (pin) {
+            isUpdatingRef.current = true;
+            try {
+                await updateSplitData(pin, {
+                    items: updatedItems,
+                    users: updatedUsers,
+                    hostId: '', // We don't need to change hostId
+                    status: splitStatus
+                });
+            } catch (err: any) {
+                console.error('Failed to add user', err);
+                setError(err.message);
+            } finally {
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
+            }
+        }
+    };
+
+    const addItem = async (name: string, price: number) => {
+        const newItem: ReceiptItem = {
+            id: crypto.randomUUID(),
+            name,
+            price,
+            quantity: 1,
+            assignedTo: users.map(u => u.id) // Auto-assign all current users
+        };
+
+        const updatedItems = [...items, newItem];
+        setItems(updatedItems);
+
+        if (pin) {
+            isUpdatingRef.current = true;
+            try {
+                await updateSplitData(pin, {
+                    items: updatedItems,
+                    users,
+                    hostId: '', // We don't need to change hostId
+                    status: splitStatus
+                });
+            } catch (err: any) {
+                console.error('Failed to add item', err);
+                setError(err.message);
+            } finally {
+                setTimeout(() => {
+                    isUpdatingRef.current = false;
+                }, 100);
+            }
+        }
+    };
+
     // Determine if we're in live mode (has PIN) vs manual mode
     const isLiveMode = pin !== null;
 
@@ -787,7 +865,9 @@ export const SplitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isLiveMode,
             forceEndSplit,
             splitItem,
-            mergeItems
+            mergeItems,
+            addUser,
+            addItem
         }}>
             {children}
         </SplitContext.Provider>
