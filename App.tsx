@@ -6,6 +6,8 @@ import { WaitingRoom } from './components/WaitingRoom';
 import { Splitter } from './components/Splitter';
 import { ShareView } from './components/ShareView';
 import { Toast } from './components/Toast';
+import { BottomNav } from './components/BottomNav';
+import { TripsView } from './components/TripsView';
 import { ReceiptItem, User, AppStep } from './types';
 import { fileToGenerativePart, parseReceiptImage } from './services/geminiService';
 import { Activity, Settings, X, Users, ArrowRight, Sparkles } from 'lucide-react';
@@ -66,6 +68,7 @@ const AppContent: React.FC = () => {
 
   const [isModeSelectionOpen, setIsModeSelectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'host' | 'join'>('host');
+  const [mainTab, setMainTab] = useState<'bill' | 'trips'>('bill');
 
   // Auto-open join modal if pending pin exists
   useEffect(() => {
@@ -426,8 +429,12 @@ const AppContent: React.FC = () => {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-8 flex flex-col min-h-0">
-        {step === AppStep.UPLOAD && (
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-8 flex flex-col min-h-0 pb-24 md:pb-28">
+        {mainTab === 'trips' ? (
+          <TripsView />
+        ) : (
+          <>
+            {step === AppStep.UPLOAD && (
           <div className="flex flex-col items-center justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto overflow-y-auto no-scrollbar">
 
             {/* Logo - Centered */}
@@ -567,7 +574,11 @@ const AppContent: React.FC = () => {
             </div>
           )
         }
+      </>
+        )}
       </main >
+
+      <BottomNav activeTab={mainTab} onTabChange={setMainTab} />
 
       {/* Toast Notifications */}
       {
