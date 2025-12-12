@@ -8,6 +8,9 @@ import { ShareView } from './components/ShareView';
 import { Toast } from './components/Toast';
 import { BottomNav } from './components/BottomNav';
 import { TripsView } from './components/TripsView';
+import { HomeView } from './components/HomeView';
+import { SplitView } from './components/SplitView';
+import { HistoryView } from './components/HistoryView';
 import { ReceiptItem, User, AppStep } from './types';
 import { fileToGenerativePart, parseReceiptImage } from './services/geminiService';
 import { Activity, Settings, X, Users, ArrowRight, Sparkles, LogOut, User as UserIcon } from 'lucide-react';
@@ -73,7 +76,15 @@ const AppContent: React.FC = () => {
 
   const [isModeSelectionOpen, setIsModeSelectionOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'host' | 'join'>('host');
-  const [mainTab, setMainTab] = useState<'bill' | 'trips'>('bill');
+  const [mainTab, setMainTab] = useState<'home' | 'bill' | 'split' | 'trips' | 'history'>('home');
+
+  // If not authenticated, default to bill split view (or whatever is the public facing view)
+  // If authenticated, we start at home
+  useEffect(() => {
+    if (!authUser) {
+      setMainTab('bill');
+    }
+  }, [authUser]);
 
   // Auto-open join modal if pending pin exists
   useEffect(() => {
@@ -465,9 +476,11 @@ const AppContent: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 md:p-8 flex flex-col min-h-0 pb-24 md:pb-28">
-        {mainTab === 'trips' ? (
-          <TripsView />
-        ) : (
+        {mainTab === 'home' && <HomeView />}
+        {mainTab === 'split' && <SplitView />}
+        {mainTab === 'history' && <HistoryView />}
+        {mainTab === 'trips' && <TripsView />}
+        {mainTab === 'bill' && (
           <>
             {step === AppStep.UPLOAD && (
           <div className="flex flex-col items-center justify-start flex-1 animate-fade-in w-full max-w-lg mx-auto overflow-y-auto no-scrollbar">
@@ -613,7 +626,7 @@ const AppContent: React.FC = () => {
         )}
       </main >
 
-      <BottomNav activeTab={mainTab} onTabChange={setMainTab} />
+      <BottomNav activeTab={mainTab} onTabChange={setMainTab} isAuthenticated={!!authUser} />
 
       {/* Toast Notifications */}
       {
