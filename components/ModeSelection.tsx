@@ -3,7 +3,7 @@ import { User, Sparkles, Users, ArrowLeft, Check, X, Copy, Link } from 'lucide-r
 
 interface ModeSelectionProps {
     onManualSelect: () => void;
-    onLiveSelect: (hostName: string) => Promise<void>;
+    onLiveSelect: (hostName: string, upiId?: string) => Promise<void>;
     isCreating: boolean;
     pin: string | null;
     onProceed: () => void;
@@ -20,6 +20,7 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
 }) => {
     const [mode, setMode] = useState<'selection' | 'live-setup'>('selection');
     const [hostName, setHostName] = useState('');
+    const [upiId, setUpiId] = useState('');
     const [linkCopied, setLinkCopied] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
 
@@ -49,7 +50,7 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
 
     const handleCreateSplit = async () => {
         if (!hostName.trim()) return;
-        await onLiveSelect(hostName);
+        await onLiveSelect(hostName, upiId.trim());
     };
 
     // Mobile: Full-screen page view
@@ -150,14 +151,22 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                                 <p className="text-cloud-subtext">We'll show this to your friends</p>
                             </div>
 
+
                             <input
                                 type="text"
                                 value={hostName}
                                 onChange={(e) => setHostName(e.target.value)}
                                 placeholder="Enter your name"
-                                className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-xl text-center placeholder-gray-300 font-bold"
+                                className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-xl text-center placeholder-gray-300 font-bold mb-4"
                                 autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && handleCreateSplit()}
+                            />
+
+                            <input
+                                type="text"
+                                value={upiId}
+                                onChange={(e) => setUpiId(e.target.value)}
+                                placeholder="UPI ID (Optional)"
+                                className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-xl text-center placeholder-gray-300 font-bold"
                             />
 
                             <div className="flex-1 min-h-[20px]" />
@@ -322,6 +331,7 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                         </div>
 
                         <div className="space-y-4">
+
                             <input
                                 type="text"
                                 value={hostName}
@@ -329,6 +339,14 @@ export const ModeSelection: React.FC<ModeSelectionProps> = ({
                                 placeholder="Enter your name"
                                 className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-lg text-center placeholder-gray-300 font-medium"
                                 autoFocus
+                            />
+
+                            <input
+                                type="text"
+                                value={upiId}
+                                onChange={(e) => setUpiId(e.target.value)}
+                                placeholder="UPI ID (Optional)"
+                                className="w-full bg-gray-50 text-cloud-text px-6 py-5 rounded-2xl border-2 border-transparent focus:border-cloud-primary focus:outline-none transition-all text-lg text-center placeholder-gray-300 font-medium"
                                 onKeyDown={(e) => e.key === 'Enter' && handleCreateSplit()}
                             />
 

@@ -22,6 +22,16 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const { toasts, hideToast, success, error: showError } = useToast();
 
+  // Use refs to store toast callbacks to avoid recreating them
+  const successRef = useRef(success);
+  const showErrorRef = useRef(showError);
+
+  // Update refs when callbacks change
+  React.useEffect(() => {
+    successRef.current = success;
+    showErrorRef.current = showError;
+  }, [success, showError]);
+
   // Calculate data per user
   const userSplits = useMemo(() => {
     if (!users || !Array.isArray(users) || !items || !Array.isArray(items)) {
@@ -51,89 +61,139 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
     return userSplits.find(u => u.user.id === copyingId);
   }, [copyingId, userSplits]);
 
-  const handleCopyImage = (userId: string) => {
+  // Use a ref lock to prevent duplicate executions (state is async and won't work)
+  const isExecutingRef = useRef(false);
+
+  // Use ref to store export data to avoid state-based rendering issues
+  const exportUserDataRef = useRef<typeof exportData>(null);
+
+  const handleCopyImage = async (userId: string) => {
+    // CRITICAL: Use ref for immediate synchronous check
+    if (isExecutingRef.current) {
+      console.log('❌ Duplicate call detected and blocked');
+      return;
+    }
+
+    // Set lock immediately (synchronous)
+    isExecutingRef.current = true;
+    console.log('✅ Starting share process for user:', userId);
+
     setCopyingId(userId);
-    // The actual capture happens in useEffect when exportData is ready
+
+    // Get the data for this user
+    const userData = userSplits.find(u => u.user.id === userId);
+    if (!userData) {
+      setCopyingId(null);
+      isExecutingRef.current = false;
+      return;
+    }
+
+    try {
+      // Wait for React to render the export div
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      const userName = userData.user.name;
+
+      // Generate detailed text breakdown
+      let shareText = `*Split Breakdown for ${userName}*\n`;
+      shareText += `${'─'.repeat(30)}\n\n`;
+
+      // Add each item with price
+      userData.items.forEach(item => {
+        shareText += `• ${item.name}: ${currency}${item.splitPrice.toFixed(2)}\n`;
+      });
+
+      shareText += `\n${'─'.repeat(30)}\n`;
+      shareText += `*Total: ${currency}${userData.total.toFixed(2)}*\n\n`;
+
+      // Add payment link
+      const hostUser = users && users.length > 0 ? users[0] : null;
+      if (hostUser && hostUser.upiId) {
+        const amount = userData.total.toFixed(2);
+        const upiLink = `upi://pay?pa=${hostUser.upiId}&pn=${encodeURIComponent(hostUser.name)}&am=${amount}&cu=INR`;
+        shareText += `Pay via UPI: ${upiLink}\n`;
+      } else {
+        shareText += `Split with style on Splitto: https://splitto.in\n`;
+      }
+
+      // Try Web Share API with text only
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            text: shareText
+          });
+
+          console.log('✅ Text breakdown shared successfully');
+          setCopyingId(null);
+          isExecutingRef.current = false;
+          return;
+        } catch (shareErr) {
+          console.log('Web Share failed, copying to clipboard:', shareErr);
+        }
+      }
+
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareText);
+        successRef.current("Breakdown copied to clipboard!");
+        setCopyingId(null);
+        isExecutingRef.current = false;
+        console.log('✅ Text copied to clipboard');
+        return;
+      } catch (clipErr) {
+        console.log("Clipboard failed:", clipErr);
+        showErrorRef.current("Could not share breakdown. Please try again.");
+        setCopyingId(null);
+        isExecutingRef.current = false;
+      }
+
+    } catch (err) {
+      console.error("Share failed", err);
+      showErrorRef.current("Could not share breakdown. Please try again.");
+      setCopyingId(null);
+      isExecutingRef.current = false;
+    }
   };
 
-  // Effect to capture image when exportData is ready
-  React.useEffect(() => {
-    if (!copyingId || !exportData || !exportRef.current) return;
+  const handleShareAll = async () => {
+    try {
+      // Generate complete breakdown for all users
+      let shareText = `*Split Summary - ${items.length} items*\n`;
+      shareText += `${'─'.repeat(40)}\n\n`;
 
-    const captureImage = async () => {
-      // Double-check the ref exists after a frame to ensure DOM is painted
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      if (!exportRef.current) {
-        setCopyingId(null);
+      // Add each user with their total
+      userSplits.forEach((data, index) => {
+        shareText += `${index + 1}. *${data.user.name}*: ${currency}${data.total.toFixed(2)}\n`;
+      });
+
+      shareText += `\n${'─'.repeat(40)}\n`;
+
+      // Add payment info
+      const hostUser = users && users.length > 0 ? users[0] : null;
+      if (hostUser && hostUser.upiId) {
+        shareText += `\n💳 *Payment Details*\n`;
+        shareText += `Pay to: ${hostUser.name}\n`;
+        shareText += `UPI: ${hostUser.upiId}\n`;
+      } else {
+        shareText += `\nSplit with style on Splitto 🎯\n`;
+        shareText += `https://splitto.in\n`;
+      }
+
+      // Try Web Share API
+      if (navigator.share) {
+        await navigator.share({ text: shareText });
+        success("Summary shared successfully!");
         return;
       }
 
-      try {
-        const blob = await htmlToImage.toBlob(exportRef.current, {
-          cacheBust: true,
-          backgroundColor: '#ffffff',
-          width: 1080,
-          style: {
-            transform: 'scale(1)',
-          }
-        });
-
-        if (!blob) {
-          showError("Failed to generate image.");
-          setCopyingId(null);
-          return;
-        }
-
-        const userName = exportData.user.name;
-
-        // Try Web Share API first (works on mobile)
-        if (navigator.share && navigator.canShare) {
-          const file = new File([blob], `${userName}-split.png`, { type: 'image/png' });
-          const shareData = {
-            files: [file],
-            title: `${userName}'s Split`,
-            text: `Here's your split breakdown for ${userName}`
-          };
-
-          if (navigator.canShare(shareData)) {
-            await navigator.share(shareData);
-            setCopyingId(null);
-            return;
-          }
-        }
-
-        // Fallback 1: Try clipboard
-        try {
-          const item = new ClipboardItem({ 'image/png': blob });
-          await navigator.clipboard.write([item]);
-          success("Image copied to clipboard!");
-          setCopyingId(null);
-          return;
-        } catch (clipErr) {
-          console.log("Clipboard failed, trying download...", clipErr);
-        }
-
-        // Fallback 2: Download image
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${userName}-split.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        setCopyingId(null);
-
-      } catch (err) {
-        console.error("Share failed", err);
-        showError("Could not share image. Please try again.");
-        setCopyingId(null);
-      }
-    };
-
-    captureImage();
-  }, [copyingId, exportData, success, showError]);
+      // Fallback: Copy to clipboard
+      await navigator.clipboard.writeText(shareText);
+      success("Summary copied to clipboard!");
+    } catch (err) {
+      console.error("Share all failed:", err);
+      showError("Could not share summary. Please try again.");
+    }
+  };
 
   const handleSharePin = async () => {
     if (!pin) return;
@@ -185,16 +245,28 @@ export const ShareView: React.FC<ShareViewProps> = ({ currency, onBack, onHome }
           </button>
         </div>
 
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-end gap-2">
           <h1 className="text-xl md:text-3xl font-black tracking-tighter text-cloud-logo lowercase select-none relative inline-block">
             <span className="absolute inset-0 text-stroke-2 md:text-stroke-4 text-white z-0" aria-hidden="true">splitto</span>
             <span className="relative z-10">splitto</span>
           </h1>
-          {isLiveMode && pin && (
-            <button onClick={handleSharePin} className="flex items-center gap-1 text-[10px] md:text-xs font-mono text-cloud-subtext active:text-black transition-colors">
-              PIN: <span className="font-bold text-black">{pin}</span> <Copy size={10} />
+
+          <div className="flex items-center gap-2">
+            {/* Share All Button */}
+            <button
+              onClick={handleShareAll}
+              className="flex items-center gap-1 px-3 py-1.5 bg-black text-white rounded-lg text-xs font-bold uppercase tracking-wider active:bg-gray-800 transition-all hover:scale-105"
+            >
+              <Share2 size={12} />
+              Share All
             </button>
-          )}
+
+            {isLiveMode && pin && (
+              <button onClick={handleSharePin} className="flex items-center gap-1 text-[10px] md:text-xs font-mono text-cloud-subtext active:text-black transition-colors">
+                PIN: <span className="font-bold text-black">{pin}</span> <Copy size={10} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

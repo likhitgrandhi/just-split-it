@@ -23,6 +23,7 @@ const generateId = () => {
 
 export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinue, onClose }) => {
   const [nameInput, setNameInput] = useState('');
+  const [upiId, setUpiId] = useState('');
   const [isMobile, setIsMobile] = useState(false);
 
   // Detect mobile viewport
@@ -104,6 +105,7 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
             </button>
           </div>
 
+
           {/* Users List */}
           <div className="flex-1 overflow-y-auto no-scrollbar min-h-[120px] -mx-2 px-2">
             {users.length === 0 ? (
@@ -132,10 +134,30 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
             )}
           </div>
 
+          {/* UPI ID Input */}
+          <div className="my-4">
+            <h3 className="text-black font-bold mb-2 ml-1">Your UPI ID (Optional)</h3>
+            <input
+              type="text"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="e.g. name@upi"
+              className="w-full bg-gray-50 border-2 border-transparent focus:border-black/10 rounded-2xl p-5 text-black placeholder:text-black/20 text-lg font-bold focus:outline-none transition-all"
+            />
+          </div>
+
           {/* Continue Button - Fixed at bottom */}
           <div className="pt-4 mt-auto">
             <button
-              onClick={onContinue}
+              onClick={() => {
+                // If there's a UPI ID, assign it to the first user
+                if (upiId.trim() && users.length > 0) {
+                  const updatedUsers = [...users];
+                  updatedUsers[0] = { ...updatedUsers[0], upiId: upiId.trim() };
+                  setUsers(updatedUsers);
+                }
+                onContinue();
+              }}
               disabled={users.length === 0}
               className="w-full bg-black text-white font-bold text-lg py-5 rounded-2xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
             >
@@ -216,8 +238,27 @@ export const UserSetup: React.FC<UserSetupProps> = ({ users, setUsers, onContinu
           )}
         </div>
 
+        <div className="relative mb-8">
+          <h3 className="text-black font-bold mb-2 ml-1">Your UPI ID (Optional)</h3>
+          <input
+            type="text"
+            value={upiId}
+            onChange={(e) => setUpiId(e.target.value)}
+            placeholder="e.g. name@upi"
+            className="w-full bg-white border-2 border-transparent focus:border-black/10 rounded-[2rem] p-6 text-black placeholder:text-black/30 text-xl font-bold focus:outline-none shadow-sm transition-all"
+          />
+        </div>
+
         <button
-          onClick={onContinue}
+          onClick={() => {
+            // If there's a UPI ID, assign it to the first user
+            if (upiId.trim() && users.length > 0) {
+              const updatedUsers = [...users];
+              updatedUsers[0] = { ...updatedUsers[0], upiId: upiId.trim() };
+              setUsers(updatedUsers);
+            }
+            onContinue();
+          }}
           disabled={users.length === 0}
           className="w-full bg-black text-white font-black text-xl py-6 rounded-[2rem] hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-auto shadow-lg hover:shadow-xl hover:-translate-y-1"
         >

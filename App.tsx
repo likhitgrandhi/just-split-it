@@ -109,13 +109,14 @@ const AppContent: React.FC = () => {
     setStep(AppStep.USERS);
   };
 
-  const handleLiveSelect = async (hostName: string) => {
+  const handleLiveSelect = async (hostName: string, upiId?: string) => {
     try {
       // Create the user first
       const newUser: User = {
         id: crypto.randomUUID(),
         name: hostName,
-        color: '#2D9CDB' // Host gets the brand color
+        color: '#2D9CDB', // Host gets the brand color
+        upiId: upiId // Add optional UPI ID
       };
 
       // Pass user and items directly to avoid async state update race condition
