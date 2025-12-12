@@ -14,6 +14,13 @@ export interface User {
   createdBy?: string; // ID of the user who created this manual user
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  created_at?: string;
+  last_login?: string;
+}
+
 export interface SplitResult {
   userId: string;
   total: number;

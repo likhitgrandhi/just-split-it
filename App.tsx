@@ -10,10 +10,12 @@ import { BottomNav } from './components/BottomNav';
 import { TripsView } from './components/TripsView';
 import { ReceiptItem, User, AppStep } from './types';
 import { fileToGenerativePart, parseReceiptImage } from './services/geminiService';
-import { Activity, Settings, X, Users, ArrowRight, Sparkles } from 'lucide-react';
+import { Activity, Settings, X, Users, ArrowRight, Sparkles, LogOut, User as UserIcon } from 'lucide-react';
 import { SplitProvider, useSplit } from './contexts/SplitContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getSplitByPin } from './services/supabase';
 import { useToast } from './hooks/useToast';
+import { SignInModal } from './components/SignInModal';
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$' },
@@ -53,6 +55,9 @@ const AppContent: React.FC = () => {
     clearPendingJoinPin,
     leaveSplit
   } = useSplit();
+
+  const { user: authUser, signOut } = useAuth();
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [currency, setCurrency] = useState('₹');
@@ -219,6 +224,36 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="h-[100dvh] bg-white text-cloud-text selection:bg-cloud-primary selection:text-white flex flex-col relative overflow-hidden">
+      {/* Auth Button - Fixed Top Right */}
+      <div className="fixed top-4 right-4 z-[80]">
+        {authUser ? (
+          <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-1.5 pl-4 rounded-full shadow-sm border border-black/5">
+            <span className="text-xs font-bold text-cloud-text max-w-[100px] truncate hidden md:block">
+              {authUser.email}
+            </span>
+            <button
+              onClick={() => signOut()}
+              className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowSignInModal(true)}
+            className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider shadow-md hover:bg-gray-800 transition-all hover:-translate-y-0.5"
+          >
+            <UserIcon size={14} />
+            Sign In
+          </button>
+        )}
+      </div>
+
+      {showSignInModal && (
+        <SignInModal onClose={() => setShowSignInModal(false)} />
+      )}
+
       {isRestoring && (
         <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <div className="w-16 h-16 border-8 border-cloud-primary border-t-transparent rounded-full animate-spin"></div>
@@ -598,7 +633,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <SplitProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </SplitProvider>
   );
 };
